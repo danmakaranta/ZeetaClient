@@ -1,0 +1,77 @@
+{
+  "project_info": {
+    "project_number": "270475944712",
+    "firebase_url": "https://zeetasupport.firebaseio.com",
+    "project_id": "zeetasupport",
+    "storage_bucket": "zeetasupport.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270475944712:android:aed6be488430d5956d02bd",
+        "android_client_info": {
+          "package_name": "com.example.zeeta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270475944712-qibe9if5p25ns9qa9cjmtib8uah9c94m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.zeeta",
+            "certificate_hash": "c4488925beaf2fc27b2926663ef94b29abff1cc5"
+          }
+        },
+        {
+          "client_id": "270475944712-uh2kqpjo077ensn3f7n3lqf9tt7iugpq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUvaW9jxRVffc4YM-wgbqKdgWd89pkq4I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270475944712-uh2kqpjo077ensn3f7n3lqf9tt7iugpq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270475944712:android:3752eaeede1e67026d02bd",
+        "android_client_info": {
+          "package_name": "com.example.zeetasupport"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270475944712-uh2kqpjo077ensn3f7n3lqf9tt7iugpq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUvaW9jxRVffc4YM-wgbqKdgWd89pkq4I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270475944712-uh2kqpjo077ensn3f7n3lqf9tt7iugpq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

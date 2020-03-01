@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".Request">
+
+    <TextView
+        android:id="@+id/serviceheading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="5dp"
+        android:layout_marginTop="5dp"
+        android:padding="3dp"
+        android:text="@string/Type_of_service_instruction"
+        android:textSize="20sp" />
+
+
+    <ScrollView
+        android:id="@+id/servicescroller"
+        android:layout_margin="5dp"
+        android:layout_width="match_parent"
+        android:layout_below="@id/serviceheading"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:orientation="vertical">
+
+            <CheckBox
+                android:id="@+id/taxi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Taxi" />
+
+            <CheckBox
+                android:id="@+id/trycycle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Trycycle(Keke)" />
+
+            <CheckBox
+                android:id="@+id/gardner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Gardener" />
+
+            <CheckBox
+                android:id="@+id/mechanic"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Mechanic" />
+
+            <CheckBox
+                android:id="@+id/lawyer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Lawyer" />
+
+            <CheckBox
+                android:id="@+id/Carpenter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Carpenter" />
+
+
+            <CheckBox
+                android:id="@+id/fireservice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Fire Service" />
+
+            <CheckBox
+                android:id="@+id/nurse"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Nurse" />
+
+            <CheckBox
+                android:id="@+id/graphicdesigner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Graphic Designer" />
+
+            <CheckBox
+                android:id="@+id/housepainter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="House Painter" />
+            <CheckBox
+                android:id="@+id/computeroperator"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Computer Operator" />
+            <CheckBox
+                android:id="@+id/phonetechnician"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Phone technician" />
+            <CheckBox
+                android:id="@+id/computerrepairengineer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="@string/computer_repair"/>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/request_btn"
+        android:padding="10dp"
+        android:layout_margin="3dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerInParent="true"
+        android:background="@color/green1"
+        android:text="@string/search_service"/>
+
+
+</RelativeLayout>

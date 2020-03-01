@@ -1,0 +1,73 @@
+<resources>
+    <string name="app_name">Zeeta</string>
+    <string name="google_maps_api_key">AIzaSyDtZoloBYNpnid7QJG_3xzm-Skay3S0oBs</string>
+    <string name="prompt_email">Email</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Sign in or register</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="welcome">"Welcome !"</string>
+    <string name="invalid_username">Not a valid username</string>
+    <string name="invalid_password">Password must be >5 characters</string>
+    <string name="login_failed">"Login failed"</string>
+    <string name="title_activity_login">LoginActivity</string>
+    <string name="password">password</string>
+    <string name="sign_in">sign_in</string>
+    <string name="register">register</string>
+    <string name="title_activity_register">RegisterActivity</string>
+    <string name="email_registration">email_registration</string>
+    <string name="confirm_password">confirm_password</string>
+    <string name="title_activity_enrollment">Enrollment</string>
+
+
+    <!-- Firestore Strings -->
+    <string name="collection_users">Users</string>
+    <string name="collection_chatrooms">Chatrooms</string>
+    <string name="collection_chat_messages">Chat Messages</string>
+    <string name="collection_chatroom_user_list">User List</string>
+    <string name="collection_user_locations">User Locations</string>
+    <string name="collection_worker_locations">Worker location</string>
+    <string name="collection_client_location">Client location</string>
+
+    <!-- Intent extras -->
+    <string name="intent_chatroom">intent_chatroom</string>
+    <string name="intent_user_list">intent_user_list</string>
+    <string name="intent_user_locations">intent_user_locations</string>
+    <string name="intent_location">intent_location</string>
+
+    <!-- Service and Broadcasts -->
+    <string name="gps_location">gps_location</string>
+
+
+    <!-- Fragments Names -->
+    <string name="fragment_user_list">User List</string>
+    <string name="fragment_image_list">Image List</string>
+
+    <!-- Other Strings -->
+    <string name="action_create_chatroom">Create Chatroom</string>
+    <string name="action_leave_chatroom">Leave chatroom</string>
+    <string name="action_chatroom_user_list">User list</string>
+    <string name="action_profile">Profile</string>
+    <string name="title_activity_user_list_item">user_list_item</string>
+    <string name="title_activity_request">Request</string>
+    <string name="go_online">Go online</string>
+    <string name="screen_expansion_button">screen expansion button</string>
+    <string name="settings">Settings</string>
+    <string name="jobs">Jobs</string>
+    <string name="sos">SOS</string>
+    <string name="home">Home</string>
+    <string name="go_live">Go Online</string>
+    <string name="connects">Connects: 0</string>
+    <string name="rating">Rating</string>
+    <string name="title_activity_main2">Main2Activity</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="title_activity_bottom_nav">bottomNav</string>
+    <string name="typeofservice">Type the service you need: Mechanic, Plumber, Lawyer,Tailor, Computer operator, Graphic designer, Gardner,
+        etc</string>
+    <string name="Type_of_service_instruction">Please select the type of service(s):</string>
+    <string name="search_service">Search service</string>
+    <string name="computer_repair">Computer repair</string>
+
+
+</resources>
