@@ -88,7 +88,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private static final int LOCATION_UPDATE_INTERVAL = 4000;
     Location currentLocation;
     Intent serviceIntent;
-    Button tempButton;
     private ArrayList<PolylineData> mPolyLinesData = new ArrayList<>();
     private Marker mSelectedMarker = null;
     //firestore access for cloud storage
@@ -104,8 +103,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private EditText mSearchText;
     //vars
     private FirebaseFirestore mDb;
-    TextView connect;
-    TextView rating;
     private ClientLocation mClientPosition;
     private LatLngBounds mMapBoundary;
     private ArrayList<WorkerLocation> mUserLocations = new ArrayList<>();
@@ -120,7 +117,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     @Override
     public void onMapReady(GoogleMap googleMap) {
         Log.d(TAG, "onMapReady: map is ready here");
-        //Toast.makeText(this, "Map is ready", Toast.LENGTH_SHORT).show();
         mMap = googleMap;
 
         if (mLocationPermissionGranted) {
@@ -150,8 +146,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
         online_status = false;
-       // tempButton = findViewById(R.id.change_btn);
-        //connect = findViewById(R.id.connect_view);
 
         selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
         for(int i=0; i<= selectedServices.size()-1; i++){
@@ -199,40 +193,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             }
         });
 
-        /*tempButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                if (online_status) {
-                    online_status = false;
-                    tempButton.setText("Go online");
-                    tempButton.setBackgroundColor(getResources().getColor(R.color.green1));
-                    connect.setVisibility(View.VISIBLE);
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-
-                        if (Looper.myLooper().isCurrentThread() || Looper.getMainLooper().isCurrentThread()) {
-                            stopService(serviceIntent);
-                            //stopForeground(true);
-                            Toast.makeText(MapActivity.this, "You are now offline and will not be able to get orders", Toast.LENGTH_SHORT).show();
-
-                        }
-                    }
-
-                } else {
-                    Toast.makeText(MapActivity.this, "You are now online, your service may be requested", Toast.LENGTH_SHORT).show();
-                    //since user has chosen to be online, track current location
-                    startLocationService();
-                    online_status = true;
-                    connect.setVisibility(View.GONE);
-                    tempButton.setText("Go offline");
-                    tempButton.setBackgroundColor(getResources().getColor(R.color.red3));
-                }
-
-            }
-        });*/
-
-        // init();
 
     }
 
@@ -254,7 +214,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     mWorkerLocation.setGeoPoint(geoPoint);
                     Log.d(TAG, "geopoint set.");
                     mWorkerLocation.setTimeStamp(null);
-                    //saveWokerLocation();
 
                 }
             }
@@ -417,39 +376,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     }
 
 
-    private void uploadClientRequest() {
 
-        if (mWorkerLocation != null) {
-            DocumentReference locationRef = mDb.collection("Worker location")
-                    .document(FirebaseAuth.getInstance().getUid());
-
-            locationRef.set(mWorkerLocation).addOnCompleteListener(new OnCompleteListener<Void>() {
-                @Override
-                public void onComplete(@NonNull Task<Void> task) {
-
-                    if (task.isSuccessful()) {
-                        Log.d(TAG, "saveUserLocation: \ninserted user location into database." +
-                                "\n latitude: " + mWorkerLocation.getGeoPoint().getLatitude() +
-                                "\n longitude: " + mWorkerLocation.getGeoPoint().getLongitude());
-                    }
-
-                }
-            });
-
-        }
-
-    }
 
     @Override
     protected void onResume() {
         super.onResume();
-       /* if (isLocationServiceRunning()) {
-            tempButton.setText("Go offline");
-            tempButton.setBackgroundColor(getResources().getColor(R.color.red3));
-            connect.setVisibility(View.GONE);
-            online_status = true;
-        }
-*/
 
         if (checkMapServices()) {
             if (mLocationPermissionGranted) {
@@ -462,9 +393,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     private boolean checkMapServices() {
         if (isServicesOk()) {
-            if (isMapsEnabled()) {
-                return true;
-            }
+            return isMapsEnabled();
         }
         return false;
     }
@@ -588,7 +517,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoom));
         //create a marker to drop pin at the location
         MarkerOptions options = new MarkerOptions().position(latlng);
-
 
         if (markerPinned) {
             mMap.addMarker(options.position(latlng)).setIcon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.ic_directions_walk_black_24dp));
