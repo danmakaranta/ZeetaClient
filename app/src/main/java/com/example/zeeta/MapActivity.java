@@ -31,6 +31,7 @@ import com.example.zeeta.models.PolylineData;
 import com.example.zeeta.models.User;
 import com.example.zeeta.models.WorkerLocation;
 import com.example.zeeta.services.LocationService;
+import com.firebase.geofire.GeoFire;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -52,6 +53,8 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -67,6 +70,7 @@ import com.google.maps.model.DirectionsRoute;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -88,8 +92,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private static final int LOCATION_UPDATE_INTERVAL = 4000;
     Location currentLocation;
     Intent serviceIntent;
+    Button tempButton;
     private ArrayList<PolylineData> mPolyLinesData = new ArrayList<>();
     private Marker mSelectedMarker = null;
+    TextView connect;
     //firestore access for cloud storage
     FirebaseStorage storage = FirebaseStorage.getInstance();
     private boolean mLocationPermissionGranted = false;
@@ -103,6 +109,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private EditText mSearchText;
     //vars
     private FirebaseFirestore mDb;
+    TextView rating;
+    private String staffOccupation = "";
     private ClientLocation mClientPosition;
     private LatLngBounds mMapBoundary;
     private ArrayList<WorkerLocation> mUserLocations = new ArrayList<>();
@@ -113,10 +121,12 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     //online status
     private boolean online_status;
     private FusedLocationProviderClient locationProviderClient;
+    private GeoFire geoFire;
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         Log.d(TAG, "onMapReady: map is ready here");
+        //Toast.makeText(this, "Map is ready", Toast.LENGTH_SHORT).show();
         mMap = googleMap;
 
         if (mLocationPermissionGranted) {
@@ -146,18 +156,20 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
         online_status = false;
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("ONLINE");
+
+        geoFire = new GeoFire(ref);
 
         selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
         for(int i=0; i<= selectedServices.size()-1; i++){
             Log.d(TAG, selectedServices.get(i));// just using the LOG to test the method for selected items on the checkbox
+            getClientRequest(selectedServices.get(i)); //get the service and pin to map with custom marker
 
         }
 
         serviceIntent = new Intent(MapActivity.this, LocationService.class);
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        //mSearchText = findViewById(R.id.input_search);
 
         mDb = FirebaseFirestore.getInstance();
 
@@ -182,7 +194,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     case R.id.jobs_button:
                         /*startActivity(new Intent(getApplicationContext(), Jobs.class));
                         overridePendingTransition(0, 0);*/
-                        getUserLocations();
+                        //getUserLocations();
                         return true;
                     case R.id.dashboard_button:
                         startActivity(new Intent(getApplicationContext(), DashBoard.class));
@@ -214,12 +226,42 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     mWorkerLocation.setGeoPoint(geoPoint);
                     Log.d(TAG, "geopoint set.");
                     mWorkerLocation.setTimeStamp(null);
+                    //saveWokerLocation();
 
                 }
             }
         });
 
     }
+
+    public String getProfession(String id) {
+
+        DocumentReference proffession = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            proffession = FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(id);
+        }
+
+        proffession.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot doc = task.getResult();
+                    String aiki = (String) doc.get("profession");
+                    if (aiki == null) {
+                        Log.d(TAG, "No data found ");
+                    } else {
+                        Log.d(TAG, aiki);
+                        staffOccupation = aiki;
+                    }
+                }
+            }
+
+        });
+        return staffOccupation;
+    }
+
 
     private void getWorkerDetails() {
 
@@ -376,11 +418,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     }
 
 
+    private void getClientRequest(String request) {
 
+    }
 
     @Override
     protected void onResume() {
         super.onResume();
+
 
         if (checkMapServices()) {
             if (mLocationPermissionGranted) {
@@ -517,6 +562,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoom));
         //create a marker to drop pin at the location
         MarkerOptions options = new MarkerOptions().position(latlng);
+
 
         if (markerPinned) {
             mMap.addMarker(options.position(latlng)).setIcon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.ic_directions_walk_black_24dp));
