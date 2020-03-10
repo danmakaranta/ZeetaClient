@@ -27,11 +27,15 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.zeeta.data.SelectedServiceData;
 import com.example.zeeta.models.PolylineData;
 import com.example.zeeta.models.User;
 import com.example.zeeta.models.WorkerLocation;
 import com.example.zeeta.services.LocationService;
 import com.firebase.geofire.GeoFire;
+import com.firebase.geofire.GeoLocation;
+import com.firebase.geofire.GeoQuery;
+import com.firebase.geofire.GeoQueryEventListener;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -53,6 +57,7 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.firestore.DocumentReference;
@@ -81,14 +86,14 @@ import androidx.fragment.app.FragmentActivity;
 import static com.example.zeeta.util.Constants.PERMISSIONS_REQUEST_ENABLE_GPS;
 
 
-public class MapActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnPolylineClickListener {
+public class MapActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnInfoWindowClickListener, GoogleMap.OnPolylineClickListener {
 
     private static final String TAG = "MapActivity";
     private static final int ERROR_DIALOG_REQUEST = 9001;
     private static final String FINE_LOCATION = Manifest.permission.ACCESS_FINE_LOCATION;
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final int LOCATION_PERMISSIONS_REQUEST_CODE = 1234;
-    private static final float DEFAULT_ZOOM = 17f;
+    private static final float DEFAULT_ZOOM = 14f;
     private static final int LOCATION_UPDATE_INTERVAL = 4000;
     Location currentLocation;
     Intent serviceIntent;
@@ -118,23 +123,27 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private GeoApiContext mGeoApiContext;
     private Handler mHandler = new Handler();
     private Runnable mRunnable;
-    //online status
-    private boolean online_status;
+    private SelectedServiceData serviceData;
+    private ArrayList selectedServiceData;
     private FusedLocationProviderClient locationProviderClient;
     private GeoFire geoFire;
+    private double RADIUS = 3;
+    private boolean serviceFound = false;
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         Log.d(TAG, "onMapReady: map is ready here");
         //Toast.makeText(this, "Map is ready", Toast.LENGTH_SHORT).show();
         mMap = googleMap;
+        mMap.setOnInfoWindowClickListener(this);
 
         if (mLocationPermissionGranted) {
             getDeviceLocation();
           /*  mMap.setMyLocationEnabled(true);
             mMap.getUiSettings().setMyLocationButtonEnabled(true);// remove the set location button from the screen*/
-            init();
+            // init();
         }
+        mMap.clear();
 
         mMap.setOnPolylineClickListener(this);
 
@@ -154,8 +163,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
         setContentView(R.layout.activity_map);
-        online_status = false;
+        selectedServiceData = new ArrayList();
         DatabaseReference ref = FirebaseDatabase.getInstance().getReference("ONLINE");
 
         geoFire = new GeoFire(ref);
@@ -163,13 +174,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
         for(int i=0; i<= selectedServices.size()-1; i++){
             Log.d(TAG, selectedServices.get(i));// just using the LOG to test the method for selected items on the checkbox
-            getClientRequest(selectedServices.get(i)); //get the service and pin to map with custom marker
+            String serv = "" + selectedServices.get(i);
+            Log.d(TAG, serv);
+            getClientRequest(serv); //get the service and pin to map with custom marker
 
         }
 
         serviceIntent = new Intent(MapActivity.this, LocationService.class);
 
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         mDb = FirebaseFirestore.getInstance();
 
@@ -195,6 +207,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                         /*startActivity(new Intent(getApplicationContext(), Jobs.class));
                         overridePendingTransition(0, 0);*/
                         //getUserLocations();
+                        // getClientRequest();
                         return true;
                     case R.id.dashboard_button:
                         startActivity(new Intent(getApplicationContext(), DashBoard.class));
@@ -418,7 +431,76 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     }
 
 
-    private void getClientRequest(String request) {
+    private void getClientRequest(String service) {
+
+        mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
+            @Override
+            public void onComplete(@NonNull Task<android.location.Location> task) {
+                if (task.isSuccessful()) {
+                    Location location = task.getResult();
+
+                    GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
+
+                    geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
+                        int numberOfStaff = 0;
+
+                        @Override
+                        public void onKeyEntered(String key, GeoLocation location) {
+
+                            if (!serviceFound && numberOfStaff < 2) {
+                                if (getProfession(key).equals(service)) {
+                                    numberOfStaff = numberOfStaff + 1;
+                                    //do what you want with the found staff id
+                                    //.
+                                    //.
+                                    MarkerOptions options = new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(getProfession(key)).snippet(key);
+
+                                    mMap.addMarker(options).setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, getProfession(key));
+                                    serviceData = new SelectedServiceData(key, location);// save the location of the staff with its ID which is the key
+
+                                    selectedServiceData.add(serviceData);
+                                    //check to see if number of staff found for is up to the required number
+                                    if (numberOfStaff == 2) {
+                                        serviceFound = true;
+                                    }
+
+                                }
+                                Log.d(TAG, key);
+                            }
+                        }
+
+                        @Override
+                        public void onKeyExited(String key) {
+
+                        }
+
+                        @Override
+                        public void onKeyMoved(String key, GeoLocation location) {
+
+                        }
+
+                        @Override
+                        public void onGeoQueryReady() {
+                            if (!serviceFound) {
+                                RADIUS = RADIUS + 1;
+                                if (RADIUS <= 20) {
+                                    getClientRequest(service);
+                                }
+
+                            }
+
+                        }
+
+                        @Override
+                        public void onGeoQueryError(DatabaseError error) {
+
+                        }
+                    });
+
+                }
+            }
+        });
 
     }
 
@@ -435,6 +517,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             }
         }
     }
+
 
     private boolean checkMapServices() {
         if (isServicesOk()) {
@@ -564,14 +647,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         MarkerOptions options = new MarkerOptions().position(latlng);
 
 
-        if (markerPinned) {
+       /* if (markerPinned) {
             mMap.addMarker(options.position(latlng)).setIcon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.ic_directions_walk_black_24dp));
         } else {
             initMap();
             //mMap.addMarker(options.position(latlng)).setIcon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.ic_directions_walk_black_24dp));
             mMap.addMarker(options).setIcon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.ic_directions_walk_black_24dp));
             markerPinned = true;
-        }
+        }*/
 
     }
 
@@ -717,6 +800,36 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 polylineData.getPolyline().setZIndex(0);
             }
         }
+
+    }
+
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+
+        if (marker.getSnippet().equals("This is you")) {
+            marker.hideInfoWindow();
+        } else {
+
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setMessage("request for a " + getProfession(marker.getSnippet()) + " ?")
+                    .setCancelable(true)
+                    .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                        public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                            resetSelectedMarker();
+                            mSelectedMarker = marker;
+
+                            dialog.dismiss();
+                        }
+                    })
+                    .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                            dialog.cancel();
+                        }
+                    });
+            final AlertDialog alert = builder.create();
+            alert.show();
+        }
+
 
     }
 }
