@@ -127,8 +127,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private ArrayList selectedServiceData;
     private FusedLocationProviderClient locationProviderClient;
     private GeoFire geoFire;
-    private double RADIUS = 3;
-    private boolean serviceFound = false;
+    private double RADIUS;
+    private boolean serviceFound;
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -164,6 +164,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        RADIUS = 3;
+        serviceFound = false;
 
         setContentView(R.layout.activity_map);
         selectedServiceData = new ArrayList();
@@ -456,16 +458,20 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                                     MarkerOptions options = new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(getProfession(key)).snippet(key);
 
                                     mMap.addMarker(options).setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, getProfession(key));
+                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                     serviceData = new SelectedServiceData(key, location);// save the location of the staff with its ID which is the key
 
                                     selectedServiceData.add(serviceData);
+
                                     //check to see if number of staff found for is up to the required number
-                                    if (numberOfStaff == 2) {
+                                    if (numberOfStaff >= 2) {
                                         serviceFound = true;
                                     }
 
+                                } else if (!serviceFound && RADIUS > 20) {
+                                    Toast.makeText(getApplicationContext(), "Your service was not found in a 20km radius. We will keep searching to get you one ", Toast.LENGTH_LONG).show();
                                 }
+
                                 Log.d(TAG, key);
                             }
                         }
@@ -482,14 +488,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                         @Override
                         public void onGeoQueryReady() {
-                            if (!serviceFound) {
+                            if (!serviceFound && RADIUS <= 20) {
                                 RADIUS = RADIUS + 1;
-                                if (RADIUS <= 20) {
-                                    getClientRequest(service);
-                                }
-
+                                getClientRequest(service);
                             }
-
                         }
 
                         @Override
@@ -501,13 +503,16 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 }
             }
         });
-
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
+        if (RADIUS >= 19) {
+            RADIUS = 3;
+            serviceFound = false;
+        }
 
         if (checkMapServices()) {
             if (mLocationPermissionGranted) {
@@ -806,30 +811,24 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     @Override
     public void onInfoWindowClick(Marker marker) {
 
-        if (marker.getSnippet().equals("This is you")) {
-            marker.hideInfoWindow();
-        } else {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Request for a " + getProfession(marker.getSnippet()) + " ?")
+                .setCancelable(true)
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
 
-            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setMessage("request for a " + getProfession(marker.getSnippet()) + " ?")
-                    .setCancelable(true)
-                    .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                        public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
-                            resetSelectedMarker();
-                            mSelectedMarker = marker;
+                        mSelectedMarker = marker;
 
-                            dialog.dismiss();
-                        }
-                    })
-                    .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                        public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
-                            dialog.cancel();
-                        }
-                    });
-            final AlertDialog alert = builder.create();
-            alert.show();
-        }
-
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                        dialog.cancel();
+                    }
+                });
+        final AlertDialog alert = builder.create();
+        alert.show();
 
     }
 }
