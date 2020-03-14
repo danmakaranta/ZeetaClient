@@ -808,6 +808,41 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
+
+    private void calculateDirections(Marker marker) {
+        Log.d(TAG, "calculateDirections: calculating directions.");
+
+        com.google.maps.model.LatLng destination = new com.google.maps.model.LatLng(
+                marker.getPosition().latitude,
+                marker.getPosition().longitude
+        );
+        DirectionsApiRequest directions = new DirectionsApiRequest(mGeoApiContext);
+
+        directions.alternatives(true);
+        directions.origin(
+                new com.google.maps.model.LatLng(
+                        currentLocation.getLatitude(),
+                        currentLocation.getLongitude()
+                )
+        );
+        Log.d(TAG, "calculateDirections: destination: " + destination.toString());
+        directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
+            @Override
+            public void onResult(DirectionsResult result) {
+
+                Log.d(TAG, "onResult: successfully retrieved directions.");
+                addPolylinesToMap(result);
+            }
+
+            @Override
+            public void onFailure(Throwable e) {
+                Log.e(TAG, "calculateDirections: Failed to get directions: " + e.getMessage());
+
+            }
+        });
+    }
+
+
     @Override
     public void onInfoWindowClick(Marker marker) {
 
@@ -818,7 +853,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
 
                         mSelectedMarker = marker;
-
+                        calculateDirections(marker);
+                        sendClientRequest(marker.getSnippet());
                         dialog.dismiss();
                     }
                 })
@@ -829,6 +865,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 });
         final AlertDialog alert = builder.create();
         alert.show();
+
+    }
+
+    private void sendClientRequest(String snippet) {
 
     }
 }
