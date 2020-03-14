@@ -29,6 +29,7 @@ import android.widget.Toast;
 
 import com.example.zeeta.data.SelectedServiceData;
 import com.example.zeeta.models.PolylineData;
+import com.example.zeeta.models.RequestData;
 import com.example.zeeta.models.User;
 import com.example.zeeta.models.WorkerLocation;
 import com.example.zeeta.services.LocationService;
@@ -60,6 +61,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -362,7 +364,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                         currentLocation.getLongitude()
                 )
         );
-
 
         Log.d(TAG, "calculateDirections: destination: " + destination.toString());
         directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
@@ -852,8 +853,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
 
-                        mSelectedMarker = marker;
-                        calculateDirections(marker);
+
+                        //calculateDirections(marker);
                         sendClientRequest(marker.getSnippet());
                         dialog.dismiss();
                     }
@@ -868,7 +869,33 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    private void sendClientRequest(String snippet) {
+    public boolean stillOnline(String id) {
+        return true;
+    }
+
+    private void sendClientRequest(String id) {
+
+        if (stillOnline(id)) {
+
+            DocumentReference clientRequest = FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(id).collection("Request").document("ongoing"); // testi
+
+            RequestData requestData = new RequestData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), id);
+            clientRequest.set(requestData).addOnCompleteListener(new OnCompleteListener<Void>() {
+                @Override
+                public void onComplete(@NonNull Task<Void> task) {
+                    if (task.isSuccessful()) {
+                        Toast.makeText(getApplicationContext(), "Your request has been sent, please hold on a minute! ", Toast.LENGTH_LONG).show();
+
+                        Log.e(TAG, "sendClientRequest: customer request sent!");
+                    } else {
+                        Log.e(TAG, "sendClientRequest: error sending customer request!");
+                    }
+
+                }
+            });
+        }
 
     }
 }

@@ -26,7 +26,6 @@ public class Request extends AppCompatActivity {
     public ArrayList<CheckBox> selectedCheckboxes;
     Button requestbtn;
     private static final String TAG = "RequestPage";
-    //initialize the arraylist for services
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +34,6 @@ public class Request extends AppCompatActivity {
         selectedServices = new ArrayList<String>();
         selectedCheckboxes = new ArrayList<CheckBox>();
         requestbtn = (Button) findViewById(R.id.request_btn);
-        Log.d(TAG, "testing oncreate");// just using the LOG to test the oncreate
 
         requestbtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -126,34 +124,6 @@ public class Request extends AppCompatActivity {
 
             newIntent.putExtra("RequestedServices", selectedServices);
             startActivity(newIntent);
-        }
-
-    }
-
-
-    private void sendRequest(final WorkerLocation userLocation) {
-
-        try {
-            DocumentReference locationRef = FirebaseFirestore.getInstance()
-                    .collection("AbujaOnline")
-                    .document(FirebaseAuth.getInstance().getUid());
-
-            locationRef.set(userLocation).addOnCompleteListener(new OnCompleteListener<Void>() {
-                @Override
-                public void onComplete(@NonNull Task<Void> task) {
-                    if (task.isSuccessful()) {
-                        Log.d(TAG, "onComplete: \ninserted user location into database." +
-                                "\n latitude: " + userLocation.getGeoPoint().getLatitude() +
-                                "\n longitude: " + userLocation.getGeoPoint().getLongitude());
-                    } else {
-                        Log.e(TAG, "saveUserLocation: could'nt insert");
-                    }
-                }
-            });
-        } catch (NullPointerException e) {
-            Log.e(TAG, "saveUserLocation: User instance is null, stopping location service.");
-            Log.e(TAG, "saveUserLocation: NullPointerException: " + e.getMessage());
-
         }
 
     }

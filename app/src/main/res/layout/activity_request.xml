@@ -43,6 +43,14 @@
                 android:onClick="onCheckboxClicked"
                 android:text="Trycycle(Keke)" />
 
+
+            <CheckBox
+                android:id="@+id/police"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Police" />
+
             <CheckBox
                 android:id="@+id/gardner"
                 android:layout_width="match_parent"
@@ -92,6 +100,13 @@
                 android:layout_height="wrap_content"
                 android:onClick="onCheckboxClicked"
                 android:text="Graphic Designer" />
+
+            <CheckBox
+                android:id="@+id/frsc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onCheckboxClicked"
+                android:text="Federal Road Safety Commission" />
 
             <CheckBox
                 android:id="@+id/housepainter"
