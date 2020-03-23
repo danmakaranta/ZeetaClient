@@ -31,7 +31,6 @@ import com.example.zeeta.models.RequestData;
 import com.example.zeeta.models.User;
 import com.example.zeeta.models.WorkerLocation;
 import com.example.zeeta.services.LocationService;
-import com.example.zeeta.util.GetActualTime;
 import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
 import com.firebase.geofire.GeoQuery;
@@ -567,6 +566,15 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                         @Override
                         public void onKeyExited(String key) {
+                            DocumentReference deleteRequest = FirebaseFirestore.getInstance()
+                                    .collection("Users")
+                                    .document(key).collection("Request").document("ongoing"); // testi
+                            deleteRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                @Override
+                                public void onComplete(@NonNull Task<Void> task) {
+                                    
+                                }
+                            });
 
                         }
 
@@ -980,8 +988,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                 DocumentSnapshot doc = task.getResult();
                 Timestamp timestamp = doc.getTimestamp("timeStamp");
-                new GetActualTime().execute("https://www.google.com/search?q=time");
-                Log.d(TAG, "Time on server is: " + new GetActualTime().execute("https://www.google.com/search?q=time"));
+
+
                 Log.d(TAG, "Time on server is: " + timestamp.getSeconds());
             }
         });
