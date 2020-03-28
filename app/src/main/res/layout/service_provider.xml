@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/serviceProviderCardView"
+    android:layout_width="250dp"
+    android:layout_height="250dp"
+    android:background="@drawable/relative_layout_background"
+    android:orientation="vertical">
+
+    <ImageView
+        android:id="@+id/serviceProviderPic"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_margin="5dp"
+        android:background="@drawable/relative_layout_background"
+        android:contentDescription="@string/app_name"
+        android:src="@color/cardview_light_background" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/serviceProviderName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Name: " />
+
+        <TextView
+            android:id="@+id/serviceProviderJobType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Job Type " />
+
+        <TextView
+            android:id="@+id/serviceProviderEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Email: " />
+
+        <TextView
+            android:id="@+id/serviceProviderPhoneNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="PhoneNumber: " />
+
+        <TextView
+            android:id="@+id/serviceProviderRating"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Rating: " />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="bottom|center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/buttonYes"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:gravity="center"
+            android:text="Yes" />
+
+        <Button
+            android:id="@+id/buttonNo"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="No" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -51,7 +51,7 @@ public class LocationService extends Service {
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        if (Build.VERSION.SDK_INT >= 26) {
+      /*  if (Build.VERSION.SDK_INT >= 26) {
             String CHANNEL_ID = "my_channel_01";
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
                     "My Channel",
@@ -64,13 +64,13 @@ public class LocationService extends Service {
                     .setContentText("").build();
 
             startForeground(1, notification);
-        }
+        }*/
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: called.");
-        getLocation();
+        // getLocation();
         return START_NOT_STICKY;
     }
 
@@ -109,7 +109,7 @@ public class LocationService extends Service {
                         if (location != null) {
                             User user = ((UserClient) (getApplicationContext())).getUser();
                             GeoPoint geoPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
-                            WorkerLocation userLocation = new WorkerLocation(user, geoPoint, null);
+
                             WorkerLocation userLocationupdate = new WorkerLocation(user, geoPoint, null,true);
                             saveUserLocation(userLocationupdate);
                             Log.d(TAG, "onLocationResult: location of last known not null.");

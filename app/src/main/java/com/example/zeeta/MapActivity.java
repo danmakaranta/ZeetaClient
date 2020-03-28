@@ -20,14 +20,16 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.zeeta.data.StaffFound;
 import com.example.zeeta.models.PolylineData;
-import com.example.zeeta.models.RequestData;
+import com.example.zeeta.models.RequestInformation;
 import com.example.zeeta.models.User;
 import com.example.zeeta.models.WorkerLocation;
 import com.example.zeeta.services.LocationService;
@@ -62,7 +64,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.ServerTimestamp;
 import com.google.firebase.storage.FirebaseStorage;
@@ -135,6 +139,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private int numberOfStaff = 0;
     private GeoQuery geoQuery;
     private DocumentReference staffTime;
+    private DocumentReference acceptance;
     private ArrayList<String> keyIDs;
 
     @Override
@@ -306,6 +311,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             }
 
         });
+        id = null;
         return staffOccupation;
     }
 
@@ -486,28 +492,27 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                         @Override
                         public void onKeyEntered(String key, GeoLocation location) {
-                            for (StaffFound stf : keysFound) {
-                                if (stf.getId().equals(key)) {
-                                    Log.d("Found", "It already contains this key " + key);
-                                    return;
-                                } else {
-                                    keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude)));
-                                    Log.d("NotFound", "added this key " + key);
-                                }
 
-                            }
+                            String tempProf = getProfession(key);
+                            putMarkerOnMapIfValid(service, key, location);
+                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), tempProf));
 
                             if (!serviceFound) {
-                                Log.d("serviceFound", "Star of execution");
+                                Log.d("serviceFound", "Start of execution");
 
                                 prof = "" + getProfession(key);
                                 String markerTag = key;
                                 Log.d("testTag:", key + " is the number found");
                                 String serv = service;
 
-
-                                if (prof.compareTo(serv) == 0) {
+                                if (getProfession(markerTag).equals(service)) {
                                     Log.d("IfProfEqualsService", "Its true" + markerTag);
+                                    numberOfStaff = numberOfStaff + 1;
+                                    if (numberOfStaff >= 2) {
+                                        serviceFound = true;
+                                        return;
+                                    }
+
 
 
                                     for (Marker markerIt : markerList) {
@@ -520,13 +525,13 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                                         }
                                     }
                                     Log.d("Change", "the new key at this point" + key);
-                                    serviceFound = true;
 
-                                    LatLng staffInVicinityLatLng = new LatLng(location.latitude, location.longitude);
+
+                                   /* LatLng staffInVicinityLatLng = new LatLng(location.latitude, location.longitude);
                                     Marker staffMarker = mMap.addMarker(new MarkerOptions().position(staffInVicinityLatLng).title(getProfession(key)));
                                     staffMarker.setTag(key);
                                     staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                                    markerList.add(staffMarker);
+                                    markerList.add(staffMarker);*/
 /*
                                     numberOfStaff = numberOfStaff + 1;
                                     //do what you want with the found staff id
@@ -562,19 +567,21 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                                 //Log.d("OnKeyEnteredWithSET", keyIDs.iterator().next());
                             }
+
+
                         }
 
                         @Override
                         public void onKeyExited(String key) {
-                            DocumentReference deleteRequest = FirebaseFirestore.getInstance()
+                           /* DocumentReference deleteRequest = FirebaseFirestore.getInstance()
                                     .collection("Users")
                                     .document(key).collection("Request").document("ongoing"); // testi
                             deleteRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
                                 @Override
                                 public void onComplete(@NonNull Task<Void> task) {
-                                    
+
                                 }
-                            });
+                            });*/
 
                         }
 
@@ -585,11 +592,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                         @Override
                         public void onGeoQueryReady() {
-                            getClientRequest(service);
-                           /* if (!serviceFound) {
+
+                            if (!serviceFound) {
 
                                 getClientRequest(service);
-                            }*/
+                            }
                         }
 
                         @Override
@@ -601,6 +608,27 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 }
             }
         });
+    }
+
+    private void putMarkerOnMapIfValid(String service, String key, GeoLocation location) {
+
+        for (int i = 0; i <= keysFound.size() - 1; i++) {
+            if (keysFound.get(i).getId().equals(key)) {
+                return;
+            } else {
+                if (getProfession(keysFound.get(i).getId()).equals(service)) {
+
+                    Log.d("Key: ", "Now this " + getProfession(key) + key);
+
+                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(keysFound.get(i).getLocation()).title(getProfession(key)));
+                    staffMarker.setTag(key);
+                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                    moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
+
+                }
+            }
+
+        }
     }
 
     @Override
@@ -999,28 +1027,108 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     private void sendClientRequest(String id) {
 
-            DocumentReference clientRequest = FirebaseFirestore.getInstance()
-                    .collection("Users")
-                    .document(id).collection("Request").document("ongoing"); // testi
+        DocumentReference clientRequest = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id).collection("Request").document("ongoing"); // testi
 
 
-        RequestData requestData = new RequestData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), FirebaseAuth.getInstance().getUid(), "Awaiting");
-        RequestData requestData1 = new RequestData("Awaiting", id, new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()));
-        clientRequest.set(requestData1).addOnCompleteListener(new OnCompleteListener<Void>() {
-                @Override
-                public void onComplete(@NonNull Task<Void> task) {
-                    if (task.isSuccessful()) {
-                        Toast.makeText(getApplicationContext(), "Your request has been sent, please hold on!", Toast.LENGTH_LONG).show();
+        RequestInformation requestData = new RequestInformation(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), FirebaseAuth.getInstance().getUid(), "Awaiting");
 
-                        Log.e(TAG, "sendClientRequest: customer request sent!");
-                    } else {
-                        Log.e(TAG, "sendClientRequest: error sending customer request!");
-                    }
+        clientRequest.set(requestData).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    Toast.makeText(getApplicationContext(), "Your request has been sent, please hold on!", Toast.LENGTH_LONG).show();
+
+                    listenForUpdate(id);
+                    Log.e(TAG, "sendClientRequest: customer request sent!");
+                } else {
+                    Log.e(TAG, "sendClientRequest: error sending customer request!");
                 }
-            });
+            }
+        });
 
 
     }
 
+    private void listenForUpdate(String id) {
+
+        DocumentReference acceptanceUpdate = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id).collection("Request").document("ongoing"); // testi
+        acceptanceUpdate.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+            @Override
+            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+
+                if (e != null) {
+                    Log.w(TAG, "Listen failed.", e);
+                    return;
+                }
+
+                if (documentSnapshot != null && documentSnapshot.exists()) {
+                    Log.d(TAG, "Current data: " + documentSnapshot.getData());
+                    if (documentSnapshot.getString("accepted").equals("Accepted")) {
+                        Toast.makeText(MapActivity.this, "Your request have been accepted", Toast.LENGTH_LONG).show();
+                        getServiceProviderDetails(id);
+                    } else {
+                        Toast.makeText(MapActivity.this, "Your request have been declined, please choose another service provider", Toast.LENGTH_LONG).show();
+                    }
+                    Log.d(TAG, "A change has been effected on this doc");
+                }
+
+            }
+        });
+    }
+
+    private void getServiceProviderDetails(String id) {
+
+        DocumentReference serviceProviderDetails = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            serviceProviderDetails = FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(id);
+        }
+        String email, number, name, rating;
+
+        serviceProviderDetails.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot doc = task.getResult();
+                    String email = (String) doc.get("email");
+                    String number = (String) doc.get("phonenumber");
+                    String name = (String) doc.get("name");
+                    String rating = (String) doc.get("rating");
+                    String jobType = (String) doc.get("profession");
+
+                    // custom dialog
+                    final Dialog dialog = new Dialog(MapActivity.this);
+                    dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+                    dialog.setContentView(R.layout.service_provider);
+                    dialog.setTitle("Service Provider Details:");
+
+                    // set the custom dialog components - text, image and button
+                    ImageView pic = (ImageView) dialog.findViewById(R.id.serviceProviderPic);
+                    TextView textName = (TextView) dialog.findViewById(R.id.serviceProviderName);
+                    textName.setText("Name: " + name);
+                    TextView textEmail = (TextView) dialog.findViewById(R.id.serviceProviderEmail);
+                    textEmail.setText("Email: " + email);
+                    TextView textJobType = (TextView) dialog.findViewById(R.id.serviceProviderJobType);
+                    textJobType.setText("Job Type: " + jobType);
+                    TextView textPhoneNumber = (TextView) dialog.findViewById(R.id.serviceProviderPhoneNumber);
+                    textPhoneNumber.setText("Phone Number: " + number);
+                    TextView textRating = (TextView) dialog.findViewById(R.id.serviceProviderRating);
+                    textRating.setText("Rating: " + rating);
+                    Button btnYes = (Button) dialog.findViewById(R.id.buttonYes);
+                    Button btnNo = (Button) dialog.findViewById(R.id.buttonNo);
+                    dialog.show();
+
+                }
+            }
+
+        });
+
+    }
 
 }

@@ -33,6 +33,8 @@ public class Request extends AppCompatActivity {
         setContentView(R.layout.activity_request);
         selectedServices = new ArrayList<String>();
         selectedCheckboxes = new ArrayList<CheckBox>();
+        selectedCheckboxes.clear();
+        selectedServices.clear();
         requestbtn = (Button) findViewById(R.id.request_btn);
 
         requestbtn.setOnClickListener(new View.OnClickListener() {
