@@ -10,14 +10,15 @@
         android:id="@+id/serviceProviderPic"
         android:layout_width="80dp"
         android:layout_height="80dp"
-        android:layout_margin="5dp"
         android:background="@drawable/relative_layout_background"
         android:contentDescription="@string/app_name"
+        android:layout_margin="5dp"
         android:src="@color/cardview_light_background" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:paddingLeft="5dp"
         android:layout_margin="5dp"
         android:orientation="vertical">
 
@@ -50,6 +51,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Rating: " />
+
+        <TextView
+            android:id="@+id/serviceProviderRate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Hourly Rate: " />
     </LinearLayout>
 
     <LinearLayout

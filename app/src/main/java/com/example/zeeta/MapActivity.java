@@ -20,6 +20,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
@@ -59,9 +60,11 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -70,6 +73,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.ServerTimestamp;
 import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
 import com.google.maps.DirectionsApiRequest;
 import com.google.maps.GeoApiContext;
 import com.google.maps.PendingResult;
@@ -101,14 +105,17 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private static final int LOCATION_PERMISSIONS_REQUEST_CODE = 1234;
     private static final float DEFAULT_ZOOM = 14f;
     private static final int LOCATION_UPDATE_INTERVAL = 4000;
+    HashMap<String, LatLng> hm = new HashMap<String, LatLng>();
     Location currentLocation;
     Intent serviceIntent;
     Button tempButton;
-    private ArrayList<PolylineData> mPolyLinesData = new ArrayList<>();
-    private Marker mSelectedMarker = null;
     TextView connect;
     //firestore access for cloud storage
     FirebaseStorage storage = FirebaseStorage.getInstance();
+    TextView rating;
+    Boolean informed = false;
+    private Boolean serviceProviderAcceptanceStatus;
+    private ArrayList<PolylineData> mPolyLinesData = new ArrayList<>();
     private boolean mLocationPermissionGranted = false;
     private GoogleMap mMap;
     private FusedLocationProviderClient mFusedLocationProviderClient;
@@ -116,12 +123,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private FusedLocationProviderClient mFusedLocationClient;
     private boolean markerPinned;
     private ArrayList<Marker> mTripMarkers = new ArrayList<>();
-    HashMap<String, LatLng> hm = new HashMap<String, LatLng>();
     //widget sections
     private EditText mSearchText;
     private ArrayList<Marker> markerList = new ArrayList<Marker>();
     private FirebaseFirestore mDb;
-    TextView rating;
     private String staffOccupation = "";
     private LatLngBounds mMapBoundary;
     private ArrayList<WorkerLocation> mUserLocations = new ArrayList<>();
@@ -140,7 +145,9 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private GeoQuery geoQuery;
     private DocumentReference staffTime;
     private DocumentReference acceptance;
+    private Marker mSelectedMarker = null;
     private ArrayList<String> keyIDs;
+    private DatabaseReference mdatabaseRef;
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -175,78 +182,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 
-    @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
-        RADIUS = 20;
-        serviceFound = false;
-        keyIDs = new ArrayList();
-        keysFound = new ArrayList<StaffFound>();
-
-        getDeviceLocation();
-
-        setContentView(R.layout.activity_map);
-        selectedServiceData = new ArrayList();
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("ONLINE");
-
-        geoFire = new GeoFire(ref);
-
-
-        selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
-        for (int i = 0; i <= selectedServices.size() - 1; i++) {
-            Log.d(TAG, selectedServices.get(i));// just using the LOG to test the method for selected items on the checkbox
-            String serv = null;
-            serv = "" + selectedServices.get(i);
-            Log.d(TAG, serv);
-            // clientTimeStamp =
-
-            serviceFound = false;
-            numberOfStaff = 0;
-            RADIUS = 20;
-            getClientRequest(serv); //get the service, if found, pin it to map with custom marker
-
-        }
-
-
-        serviceIntent = new Intent(MapActivity.this, LocationService.class);
-
-
-        mDb = FirebaseFirestore.getInstance();
-
-        markerPinned = false;
-        if (mGeoApiContext == null) {
-            mGeoApiContext = new GeoApiContext.Builder()
-                    .apiKey(getString(R.string.google_maps_api_key))
-                    .build();
-        }
-
-        //initialize and assign variables for the bottom navigation
-        BottomNavigationView bottomNavigationView = findViewById(R.id.nav_view);
-        //set home icon selected
-        bottomNavigationView.setSelectedItemId(R.id.home_button);
-        //perform itemselectedlistener
-        bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
-            @Override
-            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
-                switch (menuItem.getItemId()) {
-                    case R.id.home_button:
-                        return true;
-                    case R.id.jobs_button:
-                        /*startActivity(new Intent(getApplicationContext(), Jobs.class));
-                        overridePendingTransition(0, 0);*/
-                        //getUserLocations();
-                        return true;
-                    case R.id.dashboard_button:
-                        startActivity(new Intent(getApplicationContext(), DashBoard.class));
-                        overridePendingTransition(0, 0);
-                        return true;
-                }
-                return false;
-            }
-        });
-
-    }
+    private Bitmap my_image;
 
     // reset all variables for service
     @Override
@@ -315,7 +251,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return staffOccupation;
     }
 
-
     private void getWorkerDetails() {
 
         if (mWorkerLocation == null) {
@@ -381,7 +316,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 });
 
     }
-
 
     private void calculateDirections(GeoPoint gp) {
         Log.d(TAG, "calculateDirections: calculating directions.");
@@ -469,6 +403,79 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
+        RADIUS = 20;
+        serviceFound = false;
+        keyIDs = new ArrayList();
+        keysFound = new ArrayList<StaffFound>();
+        serviceProviderAcceptanceStatus = false;
+
+        getDeviceLocation();
+
+        setContentView(R.layout.activity_map);
+        selectedServiceData = new ArrayList();
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("ONLINE");
+
+        geoFire = new GeoFire(ref);
+
+
+        selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
+        for (int i = 0; i <= selectedServices.size() - 1; i++) {
+            Log.d(TAG, selectedServices.get(i));// just using the LOG to test the method for selected items on the checkbox
+            String serv = null;
+            serv = "" + selectedServices.get(i);
+            Log.d(TAG, serv);
+            // clientTimeStamp =
+
+            serviceFound = false;
+            numberOfStaff = 0;
+            RADIUS = 20;
+            getClientRequest(serv); //get the service, if found, pin it to map with custom marker
+
+        }
+
+
+        serviceIntent = new Intent(MapActivity.this, LocationService.class);
+
+
+        mDb = FirebaseFirestore.getInstance();
+
+        markerPinned = false;
+        if (mGeoApiContext == null) {
+            mGeoApiContext = new GeoApiContext.Builder()
+                    .apiKey(getString(R.string.google_maps_api_key))
+                    .build();
+        }
+
+        //initialize and assign variables for the bottom navigation
+        BottomNavigationView bottomNavigationView = findViewById(R.id.nav_view);
+        //set home icon selected
+        bottomNavigationView.setSelectedItemId(R.id.home_button);
+        //perform itemselectedlistener
+        bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+                switch (menuItem.getItemId()) {
+                    case R.id.home_button:
+                        return true;
+                    case R.id.jobs_button:
+                        /*startActivity(new Intent(getApplicationContext(), Jobs.class));
+                        overridePendingTransition(0, 0);*/
+                        //getUserLocations();
+                        return true;
+                    case R.id.dashboard_button:
+                        startActivity(new Intent(getApplicationContext(), DashBoard.class));
+                        overridePendingTransition(0, 0);
+                        return true;
+                }
+                return false;
+            }
+        });
+
+    }
 
     private void getClientRequest(String service) {
         getDeviceLocation();
@@ -507,13 +514,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                                 if (getProfession(markerTag).equals(service)) {
                                     Log.d("IfProfEqualsService", "Its true" + markerTag);
-                                    numberOfStaff = numberOfStaff + 1;
-                                    if (numberOfStaff >= 2) {
-                                        serviceFound = true;
-                                        return;
-                                    }
-
-
+                                    serviceFound = true;
 
                                     for (Marker markerIt : markerList) {
                                         if (markerIt.getTag().equals(key)) {
@@ -561,10 +562,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                                         serviceFound = true;
                                     }
 
-                                } else if (!serviceFound) {
-                                    // Toast.makeText(getApplicationContext(), "Your service was not found in a 20km radius. We will keep searching to get you one ", Toast.LENGTH_LONG).show();
+                                } else if (!serviceFound && !informed) {
+                                    informed = true;
+                                    Toast.makeText(getApplicationContext(), "Your service was not found in a 20km radius. We will keep searching to get you one ", Toast.LENGTH_LONG).show();
                                 }
-
                                 //Log.d("OnKeyEnteredWithSET", keyIDs.iterator().next());
                             }
 
@@ -612,23 +613,28 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     private void putMarkerOnMapIfValid(String service, String key, GeoLocation location) {
 
-        for (int i = 0; i <= keysFound.size() - 1; i++) {
-            if (keysFound.get(i).getId().equals(key)) {
-                return;
-            } else {
-                if (getProfession(keysFound.get(i).getId()).equals(service)) {
+        if (engaged(key)) {
+            return;
+        } else {
+            for (int i = 0; i <= keysFound.size() - 1; i++) {
+                if (keysFound.get(i).getId().equals(key)) {
+                    return;
+                } else {
+                    if (getProfession(keysFound.get(i).getId()).equals(service)) {
+                        Log.d("Key: ", "Now this " + getProfession(key) + key);
 
-                    Log.d("Key: ", "Now this " + getProfession(key) + key);
+                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(keysFound.get(i).getLocation()).title(getProfession(key)));
+                        staffMarker.setTag(key);
+                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                        moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
 
-                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(keysFound.get(i).getLocation()).title(getProfession(key)));
-                    staffMarker.setTag(key);
-                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                    moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
-
+                    }
                 }
+
             }
 
         }
+
     }
 
     @Override
@@ -644,7 +650,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             }
         }
     }
-
 
     private boolean checkMapServices() {
         if (isServicesOk()) {
@@ -663,7 +668,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return true;
     }
 
-
     private void buildAlertMessageNoGps() {
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("This application requires GPS to work properly, do you want to enable it?")
@@ -677,7 +681,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         final AlertDialog alert = builder.create();
         alert.show();
     }
-
 
     public boolean isServicesOk() {
         Log.d(TAG, "isServicesOk: checking google services version");
@@ -699,7 +702,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         }
         return false;
     }
-
 
     private void init() {
         geolocate();
@@ -811,7 +813,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         }
     }
 
-
     private void initMap() {// for initializing the map
         Log.d(TAG, "initMap: initializing map");
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -877,7 +878,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-
     private void startLocationService() {
         Log.d(TAG, "startLocationService: Start of location service method");
 
@@ -904,7 +904,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         Log.d(TAG, "isLocationServiceRunning: location service is not running.");
         return false;
     }
-
 
     @Override
     public void onPolylineClick(Polyline polyline) {
@@ -941,7 +940,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-
     private void calculateDirections(Marker marker) {
         Log.d(TAG, "calculateDirections: calculating directions.");
 
@@ -975,32 +973,50 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
-
     @Override
     public void onInfoWindowClick(Marker marker) {
         for (int j = 0; j <= keyIDs.size() - 1; j++) {
             Log.d("printing of id's found", keyIDs.get(j));
         }
         Log.d("Size of keyIDs: ", keyIDs.size() + "");
+        try {
+            getServiceProviderDetails(marker.getTag().toString());
+            if (engaged(marker.getTag().toString())) {
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Request for a " + getProfession(marker.getTag().toString()) + " ?")
-                .setCancelable(true)
-                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                    public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-                        //calculateDirections(marker);
-                        sendClientRequest(marker.getTag().toString());
-                        dialog.dismiss();
-                    }
-                })
-                .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
-                        dialog.cancel();
-                    }
-                });
-        final AlertDialog alert = builder.create();
-        alert.show();
+
+    }
+
+
+    public boolean engaged(String id) {
+
+        DocumentReference serviceProviderStatus = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id).collection("Request").document("ongoing");
+
+
+        serviceProviderStatus.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+
+            @Override
+            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+
+                assert documentSnapshot != null;
+                if (documentSnapshot.exists()) {
+                    String temp = documentSnapshot.getString("accepted");
+                    serviceProviderAcceptanceStatus = true;
+                    Log.d("Statusss:", "Statusessss: " + temp);
+
+                } else {
+                    serviceProviderAcceptanceStatus = false;
+                }
+
+            }
+        });
+        return serviceProviderAcceptanceStatus;
 
     }
 
@@ -1068,9 +1084,9 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 if (documentSnapshot != null && documentSnapshot.exists()) {
                     Log.d(TAG, "Current data: " + documentSnapshot.getData());
                     if (documentSnapshot.getString("accepted").equals("Accepted")) {
-                        Toast.makeText(MapActivity.this, "Your request have been accepted", Toast.LENGTH_LONG).show();
-                        getServiceProviderDetails(id);
-                    } else {
+                        Toast.makeText(MapActivity.this, "Your request have been accepted! Hold on for Client!", Toast.LENGTH_LONG).show();
+
+                    } else if (documentSnapshot.getString("accepted").equals("Declined")) {
                         Toast.makeText(MapActivity.this, "Your request have been declined, please choose another service provider", Toast.LENGTH_LONG).show();
                     }
                     Log.d(TAG, "A change has been effected on this doc");
@@ -1080,7 +1096,19 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
-    private void getServiceProviderDetails(String id) {
+    private void getServiceProviderDetails(String id) throws IOException {
+
+        // custom dialog
+        final Dialog dialog = new Dialog(MapActivity.this);
+        ImageView imageView = findViewById(R.id.serviceProviderPic);
+
+        mdatabaseRef = FirebaseDatabase.getInstance().getReference(id);
+        // Create a storage reference from our app
+        StorageReference storageRef = storage.getReference();
+
+        // Create a reference with an initial file path and name
+        StorageReference pathReference = storageRef.child(id + ".jpg");
+
 
         DocumentReference serviceProviderDetails = null;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
@@ -1101,12 +1129,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     String name = (String) doc.get("name");
                     String rating = (String) doc.get("rating");
                     String jobType = (String) doc.get("profession");
+                    Long hourlyRate = (Long) doc.get("hourlyRate");
 
-                    // custom dialog
-                    final Dialog dialog = new Dialog(MapActivity.this);
                     dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
                     dialog.setContentView(R.layout.service_provider);
-                    dialog.setTitle("Service Provider Details:");
+                    dialog.setTitle("Send Request?");
 
                     // set the custom dialog components - text, image and button
                     ImageView pic = (ImageView) dialog.findViewById(R.id.serviceProviderPic);
@@ -1120,14 +1147,52 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     textPhoneNumber.setText("Phone Number: " + number);
                     TextView textRating = (TextView) dialog.findViewById(R.id.serviceProviderRating);
                     textRating.setText("Rating: " + rating);
+                    TextView hourlyTxt = dialog.findViewById(R.id.serviceProviderRate);
+                    hourlyTxt.setText("Hourly Rate: " + hourlyRate);
+
+                    mdatabaseRef.addValueEventListener(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+
+                            dataSnapshot.getValue();
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                        }
+                    });
+
                     Button btnYes = (Button) dialog.findViewById(R.id.buttonYes);
                     Button btnNo = (Button) dialog.findViewById(R.id.buttonNo);
                     dialog.show();
+
+                    btnYes.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            if (engaged(id)) {
+                                Toast.makeText(MapActivity.this, "The client is engaged already", Toast.LENGTH_LONG).show();
+
+                            } else {
+                                sendClientRequest(id);
+                            }
+
+                            dialog.dismiss();
+                        }
+                    });
+
+                    btnNo.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            dialog.dismiss();
+                        }
+                    });
 
                 }
             }
 
         });
+        mdatabaseRef.removeValue();
 
     }
 
