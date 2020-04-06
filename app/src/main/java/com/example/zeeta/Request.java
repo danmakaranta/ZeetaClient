@@ -28,6 +28,14 @@ public class Request extends AppCompatActivity {
     private static final String TAG = "RequestPage";
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        selectedCheckboxes.clear();
+        selectedServices.clear();
+        Log.d("tesst", "OnResume: testing");
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_request);
