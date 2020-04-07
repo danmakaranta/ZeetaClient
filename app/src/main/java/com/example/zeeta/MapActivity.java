@@ -89,6 +89,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -227,38 +230,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    public String getProfession(String id) {
-
-        DocumentReference proffession = null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            proffession = FirebaseFirestore.getInstance()
-                    .collection("Users")
-                    .document(id);
-        }
-
-
-        proffession.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-
-            @Override
-            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                if (task.isSuccessful()) {
-                    DocumentSnapshot doc = task.getResult();
-                    String aiki = (String) doc.get("profession");
-                    if (aiki == null) {
-                        Log.d(TAG, "No data found ");
-                    } else {
-                        staffOccupation = null;
-                        Log.d(TAG, "Profession: " + aiki);
-                        staffOccupation = aiki;
-
-                    }
-                }
-            }
-
-        });
-        id = null;
-        return staffOccupation;
-    }
+    boolean markerTracker;
 
     private void getWorkerDetails() {
 
@@ -285,45 +257,65 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    private void getUserLocations() {
+    public String getProfession(String id) {
 
-        DocumentReference clientL = FirebaseFirestore.getInstance()
-                .collection("Client location")
-                .document("GCN7ON2GAMuL7JyUY9wX"); // testing with an already dummy location data
 
-        clientL.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+        DocumentReference proffession2 = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            proffession2 = FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(id);
+        }
+
+
+        DocumentReference proffession = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            proffession = FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(id);
+        }
+
+
+        proffession2.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+
             @Override
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
-                    Log.d(TAG, "getUserLocationss: successful at accessing the client location.");
                     DocumentSnapshot doc = task.getResult();
-                    if (doc != null) {
-                        GeoPoint geoPoint = doc.getGeoPoint("location");
-                        //check to see if we have a latitude and longitude of the client for the cloud database
-                        Log.d(TAG, "Latitude " + geoPoint.getLatitude());
-                        Log.d(TAG, "Longitude " + geoPoint.getLongitude());
+                    String jobType = (String) doc.get("profession");
 
-                       /* MarkerOptions options = new MarkerOptions().position((new LatLng(geoPoint.getLatitude(), geoPoint.getLongitude())));
-                       // mMap.addMarker(options.position((new LatLng(geoPoint.getLatitude(), geoPoint.getLongitude()))));
-*/
-                        calculateDirections(geoPoint);
-
-
+                    if (jobType == null) {
+                        Log.d(TAG, "No data found ");
                     } else {
-                        Log.d(TAG, "Document is null for location ");
+                        staffOccupation = null;
+                        Log.d(TAG, "Profession: " + jobType);
+                        staffOccupation = jobType;
                     }
+                }
 
+            }
+        });
 
+        /*proffession.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot doc = task.getResult();
+                    String aiki = (String) doc.get("profession");
+                    if (aiki == null) {
+                        Log.d(TAG, "No data found ");
+                    } else {
+                        staffOccupation = null;
+                        Log.d(TAG, "Profession: " + aiki);
+                        staffOccupation = aiki;
+                    }
                 }
             }
-        })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.d(TAG, "getUserLocationss: unsuccessful at accessing the client location.");
-                    }
-                });
 
+        });*/
+        id = null;
+        return staffOccupation;
     }
 
     private void calculateDirections(GeoPoint gp) {
@@ -427,9 +419,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
         setContentView(R.layout.activity_map);
         selectedServiceData = new ArrayList();
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("ONLINE");
 
-        geoFire = new GeoFire(ref);
 
         executeService();
 
@@ -477,15 +467,54 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
+    private void getUserLocations(String id) {
+
+        DocumentReference clientL = FirebaseFirestore.getInstance()
+                .collection("AbujaOnline")
+                .document(id); // testing with an already dummy location data
+
+        clientL.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    Log.d(TAG, "getUserLocationss: successful at accessing the client location.");
+                    DocumentSnapshot doc = task.getResult();
+                    if (doc != null) {
+                        GeoPoint geoPoint = doc.getGeoPoint("geoPoint");
+                        //check to see if we have a latitude and longitude of the client for the cloud database
+                        Log.d(TAG, "Latitude " + geoPoint.getLatitude());
+                        Log.d(TAG, "Longitude " + geoPoint.getLongitude());
+
+                        calculateDirections(geoPoint);
+
+                    } else {
+                        Log.d(TAG, "Document is null for location ");
+                    }
+
+
+                }
+            }
+        })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.d(TAG, "getUserLocationss: unsuccessful at accessing the client location.");
+                    }
+                });
+
+    }
+
     private void executeService() {
         selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
         if (selectedServices != null && selectedServices.size() >= 1) {
+
 
             for (int i = 0; i <= selectedServices.size() - 1; i++) {
                 Log.d(TAG, selectedServices.get(i));// just using the LOG to test the method for selected items on the checkbox
                 String serv = null;
                 serv = "" + selectedServices.get(i);
-
+                DatabaseReference ref = FirebaseDatabase.getInstance().getReference("ONLINE").child(serv);
+                geoFire = new GeoFire(ref);
                 serviceFound = false;
                 numberOfStaff = 0;
                 RADIUS = 20;
@@ -496,7 +525,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
 
     }
-
 
     private void getClientRequest(String service) {
         getDeviceLocation();
@@ -520,10 +548,34 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                         @Override
                         public void onKeyEntered(String key, GeoLocation location) {
-                            Log.d("OnkeyEntered", "Onkey called");
+
                             String tempProf = "key";
                             keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), tempProf));
-                            putMarkerOnMapIfValid(key);
+                            if (engaged(key)) {
+
+                            } else {
+                                if (markerList.size() <= 0) {
+
+                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title("Zeeta Partner"));
+                                    staffMarker.setTag(key);
+                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
+                                    markerList.add(staffMarker);
+                                } else {
+                                    if (markerContains(key)) {
+
+                                    } else {
+                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title("Zeeta Partner"));
+                                        staffMarker.setTag(key);
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                        moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
+                                        markerList.add(staffMarker);
+                                    }
+                                }
+                            }
+
+
+
                         }
 
                         @Override
@@ -548,9 +600,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                         @Override
                         public void onGeoQueryReady() {
                             Log.d("OnGeoQueryReady", "OnGeoQueryReady called");
-                            if (tyingNum <= 10 && !serviceFound) {
+
+                            if (tyingNum <= 20) {
                                 Log.d("Counter for GeoQuery", "Counting how many times geoQuery is called: " + tyingNum);
                                 getClientRequest(service);
+                                tyingNum++;
                             }
 
                         }
@@ -566,6 +620,28 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
+    private boolean markerContains(String key) {
+        markerTracker = false;
+        int counter = 0;
+        while (!markerTracker && markerList.size() > 0) {
+            String tempKey = "";
+            if (counter <= markerList.size() - 1) {
+                tempKey = markerList.get(counter).getId().toString();
+            }
+
+            if (tempKey.equalsIgnoreCase(key)) {
+                markerTracker = true;
+            }
+            if (counter < markerList.size()) {
+                counter = counter + 1;
+            } else {
+                markerTracker = true;
+            }
+
+        }
+        return markerTracker;
+    }
+
     private void putMarkerOnMapIfValid(String key) {
         Log.d("StartPutmarker", "Starting with: " + key);
         if (engaged(key)) {
@@ -577,38 +653,42 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 Log.d("StartPutmarker", "Starting with: " + key + " Profff" + prof);
                 String keyID = keysFound.get(i).getId();
                 LatLng loc = keysFound.get(i).getLocation();
-                for (int j = 0; j <= selectedServices.size() - 1; j++) {
-                    String tempProf = selectedServices.get(j);
-                    Log.d("tempprof", "Temp prof: " + tempProf + " Found" + prof);
-                    if (tempProf.equalsIgnoreCase(prof)) {
+                if (prof != null && !prof.isEmpty()) {
+                    for (int j = 0; j <= selectedServices.size() - 1; j++) {
+                        String tempProf = selectedServices.get(j);
+                        Log.d("tempprof", "Temp prof: " + tempProf + " Found" + prof);
+                        if (tempProf.equalsIgnoreCase(prof)) {
+                            //check to see if we have already added this marker
+                            Log.d("MarkerList", "MarkerList Size: " + markerList.size());
+                            Log.d("Chose", "Finalized: " + key + " Profff" + prof);
+                            if (markerList.size() <= 0) {
+                                if (markerList.size() >= 2) {
+                                    serviceFound = true;
+                                }
+                                Marker staffMarker = mMap.addMarker(new MarkerOptions().position(loc).title("Zeeta Partner"));
+                                staffMarker.setTag(keyID);
+                                staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
+                                markerList.add(staffMarker);
+                            } else {
+                                for (int m = 0; m <= markerList.size() - 1; m++) {
 
-                        //check to see if we have already added this marker
-                        Log.d("MarkerList", "MarkerList Size: " + markerList.size());
-                        Log.d("Chose", "Finalized: " + key + " Profff" + prof);
-                        if (markerList.size() <= 0) {
-                            serviceFound = true;
-                            Marker staffMarker = mMap.addMarker(new MarkerOptions().position(loc).title(prof));
-                            staffMarker.setTag(keyID);
-                            staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                            moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
-                            markerList.add(staffMarker);
-                        } else {
-                            for (int m = 0; m <= markerList.size() - 1; m++) {
-
-                                if (markerList.get(m).getTag().toString().equals(keyID)) {
-                                    return;
-                                } else {
-                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(loc).title(prof));
-                                    staffMarker.setTag(keyID);
-                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                                    moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
-                                    markerList.add(staffMarker);
+                                    if (markerList.get(m).getTag().toString().equals(keyID)) {
+                                        return;
+                                    } else {
+                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(loc).title(prof));
+                                        staffMarker.setTag(keyID);
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                        moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
+                                        markerList.add(staffMarker);
+                                    }
                                 }
                             }
-                        }
 
+                        }
                     }
                 }
+
             }
 
         }
@@ -766,17 +846,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private void moveCamera(LatLng latlng, float zoom, String title) {
         Log.d(TAG, "moveCamera: moving camera to current latitude:" + latlng.latitude + " longitude" + latlng.longitude);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoom));
-        //create a marker to drop pin at the location
-        MarkerOptions options = new MarkerOptions().position(latlng);
-
-       /* if (markerPinned) {
-            mMap.addMarker(options.position(latlng)).setIcon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.ic_directions_walk_black_24dp));
-        } else {
-            initMap();
-            //mMap.addMarker(options.position(latlng)).setIcon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.ic_directions_walk_black_24dp));
-            mMap.addMarker(options).setIcon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.ic_directions_walk_black_24dp));
-            markerPinned = true;
-        }*/
 
     }
 
@@ -960,15 +1029,13 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             Log.d("printing of id's found", "This was found on the list: " + keyIDs.get(j));
         }
         Log.d("Size of keyIDs: ", "Number of key added to keyIDs" + keyIDs.size());
+
         try {
             getServiceProviderDetails(marker.getTag().toString());
-            if (engaged(marker.getTag().toString())) {
 
-            }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
 
     }
 
@@ -978,7 +1045,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         DocumentReference serviceProviderStatus = FirebaseFirestore.getInstance()
                 .collection("Users")
                 .document(id).collection("Request").document("ongoing");
-
+        final boolean[] acceptance = new boolean[1];
 
         serviceProviderStatus.addSnapshotListener(new EventListener<DocumentSnapshot>() {
 
@@ -991,17 +1058,20 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     if (temp != null) {
                         if (temp.equalsIgnoreCase("accepted") || temp.equalsIgnoreCase("awaiting")) {
                             serviceProviderAcceptanceStatus = true;
+                            acceptance[0] = true;
                             Log.d("Statusss:", "Statusessss: " + temp + id);
                         }
                     }
 
                 } else {
                     serviceProviderAcceptanceStatus = false;
+                    acceptance[0] = false;
                 }
 
             }
         });
-        return serviceProviderAcceptanceStatus;
+        //return serviceProviderAcceptanceStatus;
+        return acceptance[0];
 
     }
 
