@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.zeeta">
 
@@ -21,7 +22,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".Jobs" ></activity>
+        <activity
+            android:name=".Jobs_information"
+            android:label="@string/title_activity_jobs_information"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
+        <activity android:name=".Jobs" />
         <activity android:name=".DashBoard" />
         <activity
             android:name=".Request"

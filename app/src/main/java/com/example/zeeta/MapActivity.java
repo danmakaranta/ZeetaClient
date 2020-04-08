@@ -88,10 +88,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -508,9 +504,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
         if (selectedServices != null && selectedServices.size() >= 1) {
 
-
             for (int i = 0; i <= selectedServices.size() - 1; i++) {
-                Log.d(TAG, selectedServices.get(i));// just using the LOG to test the method for selected items on the checkbox
+
                 String serv = null;
                 serv = "" + selectedServices.get(i);
                 DatabaseReference ref = FirebaseDatabase.getInstance().getReference("ONLINE").child(serv);
@@ -518,15 +513,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 serviceFound = false;
                 numberOfStaff = 0;
                 RADIUS = 20;
-                getClientRequest(serv); //get the service, if found, pin it to map with custom marker
+                getClientRequest(); //get the service, if found, pin it to map with custom marker
             }
 
         }
 
-
     }
 
-    private void getClientRequest(String service) {
+    private void getClientRequest() {
         getDeviceLocation();
 
         mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
@@ -542,9 +536,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     }
 
                     geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
-                        String prof = null;
-                        String key = "";
-                        Location foundLocation;
 
                         @Override
                         public void onKeyEntered(String key, GeoLocation location) {
@@ -603,7 +594,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                             if (tyingNum <= 20) {
                                 Log.d("Counter for GeoQuery", "Counting how many times geoQuery is called: " + tyingNum);
-                                getClientRequest(service);
+                                getClientRequest();
                                 tyingNum++;
                             }
 
@@ -642,58 +633,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return markerTracker;
     }
 
-    private void putMarkerOnMapIfValid(String key) {
-        Log.d("StartPutmarker", "Starting with: " + key);
-        if (engaged(key)) {
-        } else {
-            tyingNum++;
-            Log.d("tyingNum", "tyingNum Counter:" + tyingNum);
-            for (int i = 0; i <= keysFound.size() - 1; i++) {
-                String prof = getProfession(keysFound.get(i).getId());
-                Log.d("StartPutmarker", "Starting with: " + key + " Profff" + prof);
-                String keyID = keysFound.get(i).getId();
-                LatLng loc = keysFound.get(i).getLocation();
-                if (prof != null && !prof.isEmpty()) {
-                    for (int j = 0; j <= selectedServices.size() - 1; j++) {
-                        String tempProf = selectedServices.get(j);
-                        Log.d("tempprof", "Temp prof: " + tempProf + " Found" + prof);
-                        if (tempProf.equalsIgnoreCase(prof)) {
-                            //check to see if we have already added this marker
-                            Log.d("MarkerList", "MarkerList Size: " + markerList.size());
-                            Log.d("Chose", "Finalized: " + key + " Profff" + prof);
-                            if (markerList.size() <= 0) {
-                                if (markerList.size() >= 2) {
-                                    serviceFound = true;
-                                }
-                                Marker staffMarker = mMap.addMarker(new MarkerOptions().position(loc).title("Zeeta Partner"));
-                                staffMarker.setTag(keyID);
-                                staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                                moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
-                                markerList.add(staffMarker);
-                            } else {
-                                for (int m = 0; m <= markerList.size() - 1; m++) {
-
-                                    if (markerList.get(m).getTag().toString().equals(keyID)) {
-                                        return;
-                                    } else {
-                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(loc).title(prof));
-                                        staffMarker.setTag(keyID);
-                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                                        moveCamera(keysFound.get(i).getLocation(), DEFAULT_ZOOM, "");
-                                        markerList.add(staffMarker);
-                                    }
-                                }
-                            }
-
-                        }
-                    }
-                }
-
-            }
-
-        }
-
-    }
 
     @Override
     protected void onResume() {
@@ -1197,6 +1136,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     String rating = (String) doc.get("rating");
                     String jobType = (String) doc.get("profession");
                     Long hourly = (Long) doc.get("hourlyRate");
+
                     assert hourly != null;
                     double hourlyRate = hourly.doubleValue();
 
