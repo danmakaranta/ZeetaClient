@@ -44,7 +44,7 @@ public class CompletedJobsAdapter extends ArrayAdapter<CompletedJobs> {
 
         // Find the TextView in the list_item.xml layout with the ID version_name
         TextView jobStatus = (TextView) listItemView.findViewById(R.id.job_status);
-        jobType.setText("Job Status: " + jobsInfo.getStatus());
+        jobStatus.setText("Job Status: " + jobsInfo.getStatus());
 
         // Find the TextView in the list_item.xml layout with the ID version_name
         TextView dateTextView = (TextView) listItemView.findViewById(R.id.dateRendered);
