@@ -767,7 +767,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                         if (task.isSuccessful()) {
                             Location location = task.getResult();
                             currentLocation = location;
-                            Log.d(TAG, "about to set location and UID to database");
+                            Log.d(TAG, "moving camera to users location");
                             //move camera to current location on map
                             moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
 
@@ -1157,7 +1157,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     TextView textRating = (TextView) dialog.findViewById(R.id.serviceProviderRating);
                     textRating.setText("Rating: " + rating);
                     TextView hourlyTxt = dialog.findViewById(R.id.serviceProviderRate);
-                    hourlyTxt.setText("Hourly Rate: " + hourlyRate);
+                    hourlyTxt.setText("Hourly Rate: N" + hourlyRate);
 
                     mdatabaseRef.addValueEventListener(new ValueEventListener() {
                         @Override

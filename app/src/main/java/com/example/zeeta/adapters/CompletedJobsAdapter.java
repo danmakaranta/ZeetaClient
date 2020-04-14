@@ -9,8 +9,10 @@ import android.widget.TextView;
 
 import com.example.zeeta.R;
 import com.example.zeeta.models.CompletedJobs;
+import com.google.firebase.Timestamp;
 
 import java.util.ArrayList;
+import java.util.Date;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -48,7 +50,9 @@ public class CompletedJobsAdapter extends ArrayAdapter<CompletedJobs> {
 
         // Find the TextView in the list_item.xml layout with the ID version_name
         TextView dateTextView = (TextView) listItemView.findViewById(R.id.dateRendered);
-        dateTextView.setText("Date: " + jobsInfo.getDateRendered());
+        Timestamp tp = jobsInfo.getDateRendered();
+        Date dt = tp.toDate();
+        dateTextView.setText("Date: " + dt);
 
         View textContainer = listItemView.findViewById(R.id.job_details_container);
 
