@@ -3,16 +3,26 @@ package com.example.zeeta;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
+import android.Manifest;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.Window;
+import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.zeeta.adapters.CompletedJobsAdapter;
@@ -23,6 +33,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -94,12 +105,86 @@ public class Jobs extends AppCompatActivity {
                         Timestamp date = (Timestamp) document.getData().get("dateRendered");
                         String jobStatus = document.getData().get("status").toString();
                         String employeeID = document.getData().get("employeeID").toString();
+                        String phonenumber = document.getData().get("employeePhonenumber").toString();
 
-                        completedjobsList.add(new CompletedJobs(name, date, jobRendered, jobStatus, employeeID));
+                        completedjobsList.add(new CompletedJobs(name, date, jobRendered, jobStatus, employeeID, phonenumber));
 
                         ListAdapter myAdapter = new CompletedJobsAdapter(Jobs.this, completedjobsList, 1);
                         ListView myListView = (ListView) findViewById(R.id.jobs_completed2);
                         myListView.setAdapter(myAdapter);
+
+
+                        myListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                            @Override
+                            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                DocumentReference invoice;
+                                CompletedJobs jobData = (CompletedJobs) myListView.getItemAtPosition(position);
+
+                                // custom dialog
+                                final Dialog dialog = new Dialog(Jobs.this);
+                                dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+                                dialog.setContentView(R.layout.invoice);
+                                dialog.setTitle("Invoice");
+                                String employeeID = jobData.getEmployeeID();
+
+                                invoice = FirebaseFirestore.getInstance().collection("Customers")
+                                        .document(FirebaseAuth.getInstance().getUid())
+                                        .collection("Invoice").document(employeeID);
+                                invoice.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                                    @RequiresApi(api = Build.VERSION_CODES.N)
+                                    @Override
+                                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                                        DocumentSnapshot doc = task.getResult();
+                                        TextView hours = dialog.findViewById(R.id.invoice_hours);
+                                        Long hrs = (Long) doc.getData().get("hoursWorked");
+                                        hours.setText("" + hrs);
+                                        TextView total = dialog.findViewById(R.id.total_earned);
+                                        Long tot = (Long) doc.get("amount");
+                                        total.setText("N" + tot);
+                                        TextView hoursRate = dialog.findViewById(R.id.hours_rate);
+                                        int hrate = (int) (tot / hrs);
+                                        hoursRate.setText("N" + hrate);
+
+                                        Button callBtn = dialog.findViewById(R.id.call);
+                                        callBtn.setOnClickListener(new View.OnClickListener() {
+                                            @Override
+                                            public void onClick(View v) {
+
+                                                Intent intent = new Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", jobData.getPhoneNumber(), null));
+                                                if (ActivityCompat.checkSelfPermission(Jobs.this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+
+                                                    return;
+                                                }
+                                                startActivity(intent);
+                                                overridePendingTransition(0, 0);
+                                            }
+                                        });
+
+                                    }
+                                });
+
+                                TextView textName = dialog.findViewById(R.id.invoiceName);
+                                textName.setText(jobData.getName());
+
+                                TextView textProf = dialog.findViewById(R.id.job_done);
+                                textProf.setText("Service: " + jobData.getJob());
+
+                                Button clsJob = dialog.findViewById(R.id.close_job);
+                                Button makePayment = dialog.findViewById(R.id.make_payment);
+                                Button reportE = dialog.findViewById(R.id.report_service_provider);
+
+                                clsJob.setOnClickListener(new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View v) {
+                                        dialog.dismiss();
+                                    }
+                                });
+
+                                dialog.show();
+
+                            }
+                        });
+
                     }
                     if (docList.size() >= 1) {
 

@@ -30,26 +30,15 @@ public class CompletedJobs {
         this.status = status;
     }
 
-    public CompletedJobs(String name, Timestamp dateRendered, String job, String status, String employeeID) {
+    public CompletedJobs(String name, Timestamp dateRendered, String job, String status, String employeeID, String phoneNumber) {
         this.name = name;
         this.dateRendered = dateRendered;
         this.job = job;
         this.status = status;
         this.employeeID = employeeID;
+        this.phoneNumber = phoneNumber;
     }
 
-    public CompletedJobs(String name, Double amountPaid, Timestamp dateRendered, String phoneNumber, String job, String status, String employeeID, String employeeHourlyRate, long hoursSpent, Timestamp datecompleted) {
-        this.name = name;
-        this.amountPaid = amountPaid;
-        this.dateRendered = dateRendered;
-        this.phoneNumber = phoneNumber;
-        this.job = job;
-        this.status = status;
-        this.employeeID = employeeID;
-        this.employeeHourlyRate = employeeHourlyRate;
-        this.hoursSpent = hoursSpent;
-        this.datecompleted = datecompleted;
-    }
 
     public String getJob() {
         return job;
