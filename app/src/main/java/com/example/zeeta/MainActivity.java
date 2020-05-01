@@ -94,8 +94,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     private void secondInit() {
         FirebaseApp.initializeApp(this);
-        Intent intent = new Intent(MainActivity.this, Signin.class);
+        Intent intent = new Intent(MainActivity.this, StartPage.class);
         startActivity(intent);
+        overridePendingTransition(0, 0);
     }
 
 

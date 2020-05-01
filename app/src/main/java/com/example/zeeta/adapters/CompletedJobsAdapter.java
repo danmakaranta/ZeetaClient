@@ -45,8 +45,26 @@ public class CompletedJobsAdapter extends ArrayAdapter<CompletedJobs> {
         jobType.setText("Job: " + jobsInfo.getJob());
 
         // Find the TextView in the list_item.xml layout with the ID version_name
+        TextView statusTxt = (TextView) listItemView.findViewById(R.id.status);
+        statusTxt.setText("Job Status: ");
+
+        // Find the TextView in the list_item.xml layout with the ID version_name
         TextView jobStatus = (TextView) listItemView.findViewById(R.id.job_status);
-        jobStatus.setText("Job Status: " + jobsInfo.getStatus());
+        String status = jobsInfo.getStatus();
+        if (status.equalsIgnoreCase("accepted")) {
+            int colorStatus = ContextCompat.getColor(getContext(), R.color.orange1);
+            jobStatus.setText("" + jobsInfo.getStatus());
+            jobStatus.setTextColor(colorStatus);
+        } else if (status.equalsIgnoreCase("Completed")) {
+            int colorStatus = ContextCompat.getColor(getContext(), R.color.red1);
+            jobStatus.setText("" + jobsInfo.getStatus());
+            jobStatus.setTextColor(colorStatus);
+        } else if (status.equalsIgnoreCase("Ongoing")) {
+            int colorStatus = ContextCompat.getColor(getContext(), R.color.green1);
+            jobStatus.setText("" + jobsInfo.getStatus());
+            jobStatus.setTextColor(colorStatus);
+        }
+
 
         // Find the TextView in the list_item.xml layout with the ID version_name
         TextView dateTextView = (TextView) listItemView.findViewById(R.id.dateRendered);

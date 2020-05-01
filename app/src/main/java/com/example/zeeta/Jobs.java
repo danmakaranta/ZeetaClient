@@ -49,7 +49,7 @@ public class Jobs extends AppCompatActivity {
     final ArrayList<CompletedJobs> completedjobsList = new ArrayList<CompletedJobs>();
     CollectionReference jobsOnCloud = FirebaseFirestore.getInstance()
             .collection("Customers")
-            .document(FirebaseAuth.getInstance().getUid()).collection("Jobs");
+            .document(FirebaseAuth.getInstance().getUid()).collection("JobData");
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -100,12 +100,12 @@ public class Jobs extends AppCompatActivity {
 
                     for (QueryDocumentSnapshot document : task.getResult()) {
 
-                        String name = document.getData().get("employeeName").toString();
+                        String name = document.getData().get("serviceProviderName").toString();
                         String jobRendered = document.getData().get("serviceRendered").toString();
-                        Timestamp date = (Timestamp) document.getData().get("dateRendered");
+                        Timestamp date = (Timestamp) document.getData().get("timeStamp");
                         String jobStatus = document.getData().get("status").toString();
-                        String employeeID = document.getData().get("employeeID").toString();
-                        String phonenumber = document.getData().get("employeePhonenumber").toString();
+                        String employeeID = document.getData().get("serviceProviderID").toString();
+                        String phonenumber = document.getData().get("serviceProviderPhone").toString();
 
                         completedjobsList.add(new CompletedJobs(name, date, jobRendered, jobStatus, employeeID, phonenumber));
 
@@ -120,67 +120,75 @@ public class Jobs extends AppCompatActivity {
                                 DocumentReference invoice;
                                 CompletedJobs jobData = (CompletedJobs) myListView.getItemAtPosition(position);
 
-                                // custom dialog
-                                final Dialog dialog = new Dialog(Jobs.this);
-                                dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-                                dialog.setContentView(R.layout.invoice);
-                                dialog.setTitle("Invoice");
-                                String employeeID = jobData.getEmployeeID();
+                                String jobStatus = jobData.getStatus();
 
-                                invoice = FirebaseFirestore.getInstance().collection("Customers")
-                                        .document(FirebaseAuth.getInstance().getUid())
-                                        .collection("Invoice").document(employeeID);
-                                invoice.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-                                    @RequiresApi(api = Build.VERSION_CODES.N)
-                                    @Override
-                                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                                        DocumentSnapshot doc = task.getResult();
-                                        TextView hours = dialog.findViewById(R.id.invoice_hours);
-                                        Long hrs = (Long) doc.getData().get("hoursWorked");
-                                        hours.setText("" + hrs);
-                                        TextView total = dialog.findViewById(R.id.total_earned);
-                                        Long tot = (Long) doc.get("amount");
-                                        total.setText("N" + tot);
-                                        TextView hoursRate = dialog.findViewById(R.id.hours_rate);
-                                        int hrate = (int) (tot / hrs);
-                                        hoursRate.setText("N" + hrate);
+                                if (jobStatus.equalsIgnoreCase("Completed")) {
+                                    Toast.makeText(Jobs.this, "This Job has been completed!", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    // custom dialog
+                                    final Dialog dialog = new Dialog(Jobs.this);
+                                    dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+                                    dialog.setContentView(R.layout.invoice);
+                                    dialog.setTitle("Invoice");
+                                    String employeeID = jobData.getEmployeeID();
 
-                                        Button callBtn = dialog.findViewById(R.id.call);
-                                        callBtn.setOnClickListener(new View.OnClickListener() {
-                                            @Override
-                                            public void onClick(View v) {
+                                    invoice = FirebaseFirestore.getInstance().collection("Customers")
+                                            .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid()))
+                                            .collection("Invoice").document(employeeID);
+                                    invoice.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                                        @RequiresApi(api = Build.VERSION_CODES.N)
+                                        @Override
+                                        public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                                            DocumentSnapshot doc = task.getResult();
+                                            TextView hours = dialog.findViewById(R.id.invoice_hours);
+                                            Long hrs = (Long) doc.getData().get("hoursWorked");
+                                            hours.setText("" + hrs);
+                                            TextView total = dialog.findViewById(R.id.total_earned);
+                                            Double tot = (Double) doc.get("amount");
+                                            total.setText("N" + tot);
+                                            TextView hoursRate = dialog.findViewById(R.id.hours_rate);
+                                            int hrate = (int) (tot / hrs);
+                                            hoursRate.setText("N" + hrate);
 
-                                                Intent intent = new Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", jobData.getPhoneNumber(), null));
-                                                if (ActivityCompat.checkSelfPermission(Jobs.this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                                            Button callBtn = dialog.findViewById(R.id.call);
+                                            callBtn.setOnClickListener(new View.OnClickListener() {
+                                                @Override
+                                                public void onClick(View v) {
 
-                                                    return;
+                                                    Intent intent = new Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", jobData.getPhoneNumber(), null));
+                                                    if (ActivityCompat.checkSelfPermission(Jobs.this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                                                        return;
+                                                    }
+                                                    startActivity(intent);
+                                                    overridePendingTransition(0, 0);
                                                 }
-                                                startActivity(intent);
-                                                overridePendingTransition(0, 0);
-                                            }
-                                        });
+                                            });
 
-                                    }
-                                });
+                                        }
+                                    });
 
-                                TextView textName = dialog.findViewById(R.id.invoiceName);
-                                textName.setText(jobData.getName());
+                                    TextView textName = dialog.findViewById(R.id.invoiceName);
+                                    textName.setText(jobData.getName());
 
-                                TextView textProf = dialog.findViewById(R.id.job_done);
-                                textProf.setText("Service: " + jobData.getJob());
+                                    TextView textProf = dialog.findViewById(R.id.job_done);
+                                    textProf.setText("Service: " + jobData.getJob());
 
-                                Button clsJob = dialog.findViewById(R.id.close_job);
-                                Button makePayment = dialog.findViewById(R.id.make_payment);
-                                Button reportE = dialog.findViewById(R.id.report_service_provider);
+                                    Button clsJob = dialog.findViewById(R.id.close_job);
+                                    Button makePayment = dialog.findViewById(R.id.make_payment);
+                                    Button reportE = dialog.findViewById(R.id.report_service_provider);
 
-                                clsJob.setOnClickListener(new View.OnClickListener() {
-                                    @Override
-                                    public void onClick(View v) {
-                                        dialog.dismiss();
-                                    }
-                                });
+                                    clsJob.setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View v) {
+                                            dialog.dismiss();
+                                        }
+                                    });
 
-                                dialog.show();
+                                    dialog.show();
+
+
+                                }
+
 
                             }
                         });

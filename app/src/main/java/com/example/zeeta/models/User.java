@@ -6,6 +6,23 @@ import android.os.Parcelable;
 
 public class User implements Parcelable {
 
+
+    private String email;
+    private String user_id;
+    private String username;
+    private String avatar;
+    private String phoneNumber;
+    private boolean newUser;
+
+    protected User(Parcel in) {
+        email = in.readString();
+        user_id = in.readString();
+        username = in.readString();
+        avatar = in.readString();
+        phoneNumber = in.readString();
+        newUser = in.readByte() != 0;
+    }
+
     public static final Creator<User> CREATOR = new Creator<User>() {
         @Override
         public User createFromParcel(Parcel in) {
@@ -17,11 +34,23 @@ public class User implements Parcelable {
             return new User[size];
         }
     };
-    private String email;
-    private String user_id;
-    private String username;
-    private String avatar;
-    private String phoneNumber;
+
+    public User(String email, String user_id, String username, String avatar, String phoneNumber, boolean newUser) {
+        this.email = email;
+        this.user_id = user_id;
+        this.username = username;
+        this.avatar = avatar;
+        this.phoneNumber = phoneNumber;
+        this.newUser = newUser;
+    }
+
+    public boolean isNewUser() {
+        return newUser;
+    }
+
+    public void setNewUser(boolean newUser) {
+        this.newUser = newUser;
+    }
 
     public User(String email, String user_id, String username, String avatar, String phoneNumber) {
         this.email = email;
@@ -35,17 +64,7 @@ public class User implements Parcelable {
 
     }
 
-    public User(Parcel in) {
-        email = in.readString();
-        user_id = in.readString();
-        username = in.readString();
-        avatar = in.readString();
-        phoneNumber = in.readString();
-    }
 
-    public static Creator<User> getCREATOR() {
-        return CREATOR;
-    }
 
     public String getAvatar() {
         return avatar;
@@ -87,16 +106,6 @@ public class User implements Parcelable {
         this.username = username;
     }
 
-    @Override
-    public String toString() {
-        return "User{" +
-                "email='" + email + '\'' +
-                ", user_id='" + user_id + '\'' +
-                ", username='" + username + '\'' +
-                ", phoneNumber='" + phoneNumber + '\'' +
-                ", avatar='" + avatar + '\'' +
-                '}';
-    }
 
     @Override
     public int describeContents() {
@@ -105,11 +114,15 @@ public class User implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
+
         dest.writeString(email);
         dest.writeString(user_id);
         dest.writeString(username);
         dest.writeString(avatar);
         dest.writeString(phoneNumber);
+        dest.writeByte((byte) (newUser ? 1 : 0));
     }
+
+
 }
 

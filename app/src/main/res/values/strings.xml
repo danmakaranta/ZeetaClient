@@ -20,10 +20,9 @@
 
 
     <!-- Firestore Strings -->
-    <string name="collection_users">Users</string>
+    <string name="collection_users">Customers</string>
     <string name="collection_chatrooms">Chatrooms</string>
     <string name="collection_chat_messages">Chat Messages</string>
-    <string name="collection_chatroom_user_list">User List</string>
     <string name="collection_user_locations">User Locations</string>
     <string name="collection_worker_locations">Worker location</string>
     <string name="collection_client_location">Client location</string>
@@ -77,6 +76,8 @@
 
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="fullname">Enter Full Name</string>
+    <string name="title_activity_start_page">StartPage</string>
 
 
 </resources>

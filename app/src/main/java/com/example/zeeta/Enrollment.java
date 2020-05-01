@@ -19,6 +19,8 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
 
+import java.util.Objects;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -29,7 +31,7 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
 
     private static final String TAG = "EnrollmentActivity";
     //widgets
-    private EditText mEmail, mPassword, mConfirmPassword, phoneNumber;
+    private EditText mEmail, mPassword, mConfirmPassword, phoneNumber, fullName;
     private ProgressBar mProgressBar;
     //vars
     private FirebaseFirestore mDb;
@@ -42,8 +44,9 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
         mEmail = findViewById(R.id.email_input);
         mPassword = findViewById(R.id.input_password);
         mConfirmPassword = findViewById(R.id.input_confirm_password);
-        mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
+        mProgressBar = findViewById(R.id.progressBar);
         phoneNumber = findViewById(R.id.phone_number);
+        fullName = findViewById(R.id.username_input);
 
         findViewById(R.id.register_btn).setOnClickListener(this);
 
@@ -60,7 +63,7 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
      * @param email
      * @param password
      */
-    public void registerNewEmail(final String email, String password, final String phoneNumber) {
+    public void registerNewEmail(final String email, String password, final String phoneNumber, final String fullName) {
 
         showDialog();
 
@@ -68,27 +71,24 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
                 .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
-                        Log.d(TAG, "createUserWithEmail:onComplete:" + task.isSuccessful());
 
                         if (task.isSuccessful()) {
-                            Log.d(TAG, "onComplete: AuthState: " + FirebaseAuth.getInstance().getCurrentUser().getUid());
-
                             //insert some default data
                             User user = new User();
                             user.setEmail(email);
-                            user.setUsername(email.substring(0, email.indexOf("@")));
+                            user.setUsername(fullName);
                             user.setUser_id(FirebaseAuth.getInstance().getUid());
                             user.setPhoneNumber(phoneNumber);
+                            user.setNewUser(true);
 
                             FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
                                     .setTimestampsInSnapshotsEnabled(true)
                                     .build();
                             mDb.setFirestoreSettings(settings);
 
-
                             DocumentReference newUserRef = mDb
                                     .collection(getString(R.string.collection_users))
-                                    .document(FirebaseAuth.getInstance().getUid());
+                                    .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid()));
 
                             newUserRef.set(user).addOnCompleteListener(new OnCompleteListener<Void>() {
                                 @Override
@@ -128,7 +128,6 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
 
     private void showDialog() {
         mProgressBar.setVisibility(View.VISIBLE);
-
     }
 
     private void hideDialog() {
@@ -162,7 +161,7 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
 
                         if (!isEmpty(phoneNumber.getText().toString())) {
                             //Initiate registration task
-                            registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString(), phoneNumber.getText().toString());
+                            registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString(), phoneNumber.getText().toString(), fullName.getText().toString());
                         } else {
                             Toast.makeText(Enrollment.this, "Please type your phone number", Toast.LENGTH_SHORT).show();
                         }

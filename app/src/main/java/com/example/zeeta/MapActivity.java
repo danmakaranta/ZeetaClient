@@ -17,6 +17,7 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -30,6 +31,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.zeeta.data.GeneralJobData;
+import com.example.zeeta.data.JobData;
 import com.example.zeeta.data.StaffFound;
 import com.example.zeeta.models.PolylineData;
 import com.example.zeeta.models.RequestInformation;
@@ -86,8 +89,8 @@ import com.google.maps.model.DirectionsRoute;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -106,18 +109,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final int LOCATION_PERMISSIONS_REQUEST_CODE = 1234;
     private static final float DEFAULT_ZOOM = 14f;
-    private static final int LOCATION_UPDATE_INTERVAL = 4000;
-    HashMap<String, LatLng> hm = new HashMap<String, LatLng>();
     Location currentLocation;
     Intent serviceIntent;
-    Button tempButton;
-    TextView connect;
     public LocationManager locationManager;
     //firestore access for cloud storage
     FirebaseStorage storage = FirebaseStorage.getInstance();
-    TextView rating;
-    Boolean informed = false;
     private Boolean serviceProviderAcceptanceStatus;
+    private long hourlyRate = 0;
+    private String serviceRendered = "";
     private ArrayList<PolylineData> mPolyLinesData = new ArrayList<>();
     private boolean mLocationPermissionGranted = false;
     private GoogleMap mMap;
@@ -145,7 +144,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private double RADIUS;
     private boolean serviceFound;
     private ArrayList<StaffFound> keysFound;
-    private int numberOfStaff = 0;
     private GeoQuery geoQuery;
     private DocumentReference staffTime;
     private DocumentReference acceptance;
@@ -155,28 +153,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     public String bestProvider;
     DocumentReference clientRequest;
     private int tyingNum;
-
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        Log.d(TAG, "onMapReady: map is ready here");
-        //Toast.makeText(this, "Map is ready", Toast.LENGTH_SHORT).show();
-        mMap = googleMap;
-        mMap.setOnInfoWindowClickListener(this);
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        getDeviceLocation();
-
-        if (mLocationPermissionGranted) {
-            getDeviceLocation();
-          /*  mMap.setMyLocationEnabled(true);
-            mMap.getUiSettings().setMyLocationButtonEnabled(true);// remove the set location button from the screen*/
-            // init();
-        }
-        mMap.clear();
-
-        mMap.setOnPolylineClickListener(this);
-
-    }
+    private String serviceProviderPhone;
+    private String getServiceProviderName;
+    private GeoPoint serviceProviderLocation;
+    private GeoPoint pickupLocation;
+    private GeoPoint destination;
+    private String locality = "StateNotFound";
+    private @ServerTimestamp
+    Timestamp timeStamp;
 
     //for adding a custom marker,
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId){
@@ -195,7 +179,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     @Override
     public void onBackPressed() {
         serviceFound = false;
-        numberOfStaff = 0;
         selectedServices.clear();
         serviceProviderAcceptanceStatus = false;
         mMap.clear();
@@ -401,9 +384,68 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     }
 
     @Override
+    public void onMapReady(GoogleMap googleMap) {
+        Log.d(TAG, "onMapReady: map is ready here");
+        //Toast.makeText(this, "Map is ready", Toast.LENGTH_SHORT).show();
+        mMap = googleMap;
+        mMap.setOnInfoWindowClickListener(this);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        // getDeviceLocation();
+
+        if (mLocationPermissionGranted) {
+            getDeviceLocation();
+          /*  mMap.setMyLocationEnabled(true);
+            mMap.getUiSettings().setMyLocationButtonEnabled(true);// remove the set location button from the screen*/
+            // init();
+        }
+        mMap.clear();
+        mMap.setOnPolylineClickListener(this);
+
+    }
+
+    private void getUserLocations(String id) {
+
+        DocumentReference clientL = FirebaseFirestore.getInstance()
+                .collection("AbujaOnline")
+                .document(id); // testing with an already dummy location data
+
+        clientL.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    Log.d(TAG, "getUserLocationss: successful at accessing the client location.");
+                    DocumentSnapshot doc = task.getResult();
+                    if (doc != null) {
+                        GeoPoint geoPoint = doc.getGeoPoint("geoPoint");
+                        //check to see if we have a latitude and longitude of the client for the cloud database
+                        Log.d(TAG, "Latitude " + geoPoint.getLatitude());
+                        Log.d(TAG, "Longitude " + geoPoint.getLongitude());
+
+                        calculateDirections(geoPoint);
+
+                    } else {
+                        Log.d(TAG, "Document is null for location ");
+                    }
+
+
+                }
+            }
+        })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.d(TAG, "getUserLocationss: unsuccessful at accessing the client location.");
+                    }
+                });
+
+    }
+
+    @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
+        getDeviceLocation();
         RADIUS = 20;
         serviceFound = false;
         keyIDs = new ArrayList();
@@ -411,13 +453,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         serviceProviderAcceptanceStatus = false;
 
         tyingNum = 0;
-        getDeviceLocation();
+
 
         setContentView(R.layout.activity_map);
         selectedServiceData = new ArrayList();
-
-
-        executeService();
 
         serviceIntent = new Intent(MapActivity.this, LocationService.class);
 
@@ -461,42 +500,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             }
         });
 
-    }
-
-    private void getUserLocations(String id) {
-
-        DocumentReference clientL = FirebaseFirestore.getInstance()
-                .collection("AbujaOnline")
-                .document(id); // testing with an already dummy location data
-
-        clientL.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-            @Override
-            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                if (task.isSuccessful()) {
-                    Log.d(TAG, "getUserLocationss: successful at accessing the client location.");
-                    DocumentSnapshot doc = task.getResult();
-                    if (doc != null) {
-                        GeoPoint geoPoint = doc.getGeoPoint("geoPoint");
-                        //check to see if we have a latitude and longitude of the client for the cloud database
-                        Log.d(TAG, "Latitude " + geoPoint.getLatitude());
-                        Log.d(TAG, "Longitude " + geoPoint.getLongitude());
-
-                        calculateDirections(geoPoint);
-
-                    } else {
-                        Log.d(TAG, "Document is null for location ");
-                    }
-
-
-                }
-            }
-        })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.d(TAG, "getUserLocationss: unsuccessful at accessing the client location.");
-                    }
-                });
+        executeService();
 
     }
 
@@ -508,107 +512,20 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                 String serv = null;
                 serv = "" + selectedServices.get(i);
-                DatabaseReference ref = FirebaseDatabase.getInstance().getReference("ONLINE").child(serv);
+
+                if (currentLocation != null) {
+
+                }
+                DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
                 geoFire = new GeoFire(ref);
+
                 serviceFound = false;
-                numberOfStaff = 0;
                 RADIUS = 20;
                 getClientRequest(); //get the service, if found, pin it to map with custom marker
             }
 
         }
 
-    }
-
-    private void getClientRequest() {
-        getDeviceLocation();
-
-        mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
-            @Override
-            public void onComplete(@NonNull Task<android.location.Location> task) {
-                if (task.isSuccessful()) {
-                    Location location = task.getResult();
-                    if (location != null) {
-                        geoQuery = geoFire.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
-                        Log.d("locationzzz", "Testing to look for null");
-                    } else {
-                        geoQuery = geoFire.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
-                    }
-
-                    geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
-
-                        @Override
-                        public void onKeyEntered(String key, GeoLocation location) {
-
-                            String tempProf = "key";
-                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), tempProf));
-                            if (engaged(key)) {
-
-                            } else {
-                                if (markerList.size() <= 0) {
-
-                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title("Zeeta Partner"));
-                                    staffMarker.setTag(key);
-                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
-                                    markerList.add(staffMarker);
-                                } else {
-                                    if (markerContains(key)) {
-
-                                    } else {
-                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title("Zeeta Partner"));
-                                        staffMarker.setTag(key);
-                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
-                                        moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
-                                        markerList.add(staffMarker);
-                                    }
-                                }
-                            }
-
-
-
-                        }
-
-                        @Override
-                        public void onKeyExited(String key) {
-                           /* DocumentReference deleteRequest = FirebaseFirestore.getInstance()
-                                    .collection("Users")
-                                    .document(key).collection("Request").document("ongoing"); // testi
-                            deleteRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                @Override
-                                public void onComplete(@NonNull Task<Void> task) {
-
-                                }
-                            });*/
-
-                        }
-
-                        @Override
-                        public void onKeyMoved(String key, GeoLocation location) {
-
-                        }
-
-                        @Override
-                        public void onGeoQueryReady() {
-                            Log.d("OnGeoQueryReady", "OnGeoQueryReady called");
-
-                            if (tyingNum <= 20) {
-                                Log.d("Counter for GeoQuery", "Counting how many times geoQuery is called: " + tyingNum);
-                                getClientRequest();
-                                tyingNum++;
-                            }
-
-                        }
-
-                        @Override
-                        public void onGeoQueryError(DatabaseError error) {
-
-                        }
-                    });
-
-                }
-            }
-        });
     }
 
     private boolean markerContains(String key) {
@@ -736,50 +653,94 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    private void getDeviceLocation() {
-        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-        criteria = new Criteria();
-        bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
+    private void getClientRequest() {
+        getDeviceLocation();
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
+        mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
+            @Override
+            public void onComplete(@NonNull Task<android.location.Location> task) {
+                if (task.isSuccessful()) {
+                    Location location = task.getResult();
+                    if (location != null) {
+                        geoQuery = geoFire.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
 
-
-        Log.d(TAG, "getDeviceLocation: getting the device current location");
-
-
-        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
-
-        try {
-            if (mLocationPermissionGranted) {// check first to see if the permission is granted
-                mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
-                mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
-                    @Override
-                    public void onComplete(@NonNull Task<android.location.Location> task) {
-                        if (task.isSuccessful()) {
-                            Location location = task.getResult();
-                            currentLocation = location;
-                            Log.d(TAG, "moving camera to users location");
-                            //move camera to current location on map
-                            moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
-
-                        }
+                    } else {
+                        geoQuery = geoFire.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
                     }
 
-                });
-            }
-        } catch (SecurityException e) {
-            Log.d(TAG, "getDeviceLocation: SecurityException:" + e.getMessage());
-        }
+                    geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
 
+                        @Override
+                        public void onKeyEntered(String key, GeoLocation location) {
+
+                            String tempProf = "key";
+                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), tempProf));
+                            if (engaged(key)) {
+
+                            } else {
+                                if (markerList.size() <= 0) {
+
+                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title("Zeeta Partner"));
+                                    staffMarker.setTag(key);
+                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
+                                    markerList.add(staffMarker);
+                                } else {
+                                    if (markerContains(key)) {
+
+                                    } else {
+                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title("Zeeta Partner"));
+                                        staffMarker.setTag(key);
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                        moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
+                                        markerList.add(staffMarker);
+                                    }
+                                }
+                            }
+
+
+                        }
+
+                        @Override
+                        public void onKeyExited(String key) {
+                           /* DocumentReference deleteRequest = FirebaseFirestore.getInstance()
+                                    .collection("Users")
+                                    .document(key).collection("Request").document("ongoing"); // testi
+                            deleteRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                @Override
+                                public void onComplete(@NonNull Task<Void> task) {
+
+                                }
+                            });*/
+
+                        }
+
+                        @Override
+                        public void onKeyMoved(String key, GeoLocation location) {
+
+                        }
+
+                        @Override
+                        public void onGeoQueryReady() {
+                            Log.d("OnGeoQueryReady", "OnGeoQueryReady called");
+
+                            if (tyingNum <= 20) {
+                                Log.d("Counter for GeoQuery", "Counting how many times geoQuery is called: " + tyingNum);
+                                getClientRequest();
+                                tyingNum++;
+                            }
+
+                        }
+
+                        @Override
+                        public void onGeoQueryError(DatabaseError error) {
+
+                        }
+                    });
+
+                }
+            }
+        });
     }
 
     private void moveCamera(LatLng latlng, float zoom, String title) {
@@ -962,18 +923,49 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
-    @Override
-    public void onInfoWindowClick(Marker marker) {
-        for (int j = 0; j <= keyIDs.size() - 1; j++) {
-            Log.d("printing of id's found", "This was found on the list: " + keyIDs.get(j));
+    private void getDeviceLocation() {
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        criteria = new Criteria();
+        bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
         }
-        Log.d("Size of keyIDs: ", "Number of key added to keyIDs" + keyIDs.size());
+
+
+        Log.d(TAG, "getDeviceLocation: getting the device current location");
+
+
+        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
         try {
-            getServiceProviderDetails(marker.getTag().toString());
+            if (mLocationPermissionGranted) {// check first to see if the permission is granted
+                mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
+                mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
+                    @Override
+                    public void onComplete(@NonNull Task<android.location.Location> task) {
+                        if (task.isSuccessful()) {
+                            Location location = task.getResult();
+                            currentLocation = location;
+                            locality = getLocality();
 
-        } catch (IOException e) {
-            e.printStackTrace();
+                            //move camera to current location on map
+                            moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
+
+                        }
+                    }
+
+                });
+            }
+        } catch (SecurityException e) {
+            Log.d(TAG, "getDeviceLocation: SecurityException:" + e.getMessage());
         }
 
     }
@@ -1014,6 +1006,19 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+
+        try {
+
+            getServiceProviderDetails(marker.getTag().toString());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public boolean stillOnline(String id) {
 
         staffTime = FirebaseFirestore.getInstance()
@@ -1027,7 +1032,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 DocumentSnapshot doc = task.getResult();
                 Timestamp timestamp = doc.getTimestamp("timeStamp");
 
-
+                assert timestamp != null;
                 Log.d(TAG, "Time on server is: " + timestamp.getSeconds());
             }
         });
@@ -1035,11 +1040,69 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return true;
     }
 
+    private void sendRideRequest(String id, GeoPoint pickup, GeoPoint destination, Long amount) {
+        final int[] counter = {0};
+        timeStamp = Timestamp.now();
+        DocumentReference clientRequest = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id).collection("RideData").document(Objects.requireNonNull("ongoing"));
+
+        JourneyInfo journeyInfo = new JourneyInfo(pickup, destination, FirebaseAuth.getInstance().getUid(), "+3920329", (long) 0, timeStamp, (long) amount, false, false, false);
+
+        clientRequest.set(journeyInfo).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    //Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for driver", Toast.LENGTH_LONG).show();
+                    clientRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+                        @Override
+                        public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                            counter[0] = counter[0] + 1;
+                            if (e != null) {
+                                Log.w(TAG, "Listen failed.", e);
+                                return;
+                            }
+
+                            if (documentSnapshot != null && documentSnapshot.exists()) {
+                                Log.d(TAG, "Current data: " + documentSnapshot.getData());
+                                Boolean accepted = documentSnapshot.getBoolean("accepted");
+                                if (accepted) {
+                                    //listen for ride data here
+                                    listenForRideUpdate();
+                                    Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
+                                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && !accepted) {
+
+                                    if (counter[0] > 1) {
+                                        //clear your request since it has been declined
+                                        clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                            @Override
+                                            public void onComplete(@NonNull Task<Void> task) {
+                                                Log.w(TAG, "Ride Request declined, clear request data.");
+                                            }
+                                        });
+                                        Toast.makeText(MapActivity.this, "Your request have been declined, please choose another Vehicle", Toast.LENGTH_LONG).show();
+
+                                    }
+
+                                }
+
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+    }
+
+    private void listenForRideUpdate() {
+    }
+
     private void sendClientRequest(String id) {
 
         DocumentReference clientRequest = FirebaseFirestore.getInstance()
                 .collection("Users")
-                .document(id).collection("Request").document("ongoing"); // testi
+                .document(id).collection("Request").document("ongoing");
 
 
         RequestInformation requestData = new RequestInformation(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), FirebaseAuth.getInstance().getUid(), "Awaiting");
@@ -1049,7 +1112,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
                     Toast.makeText(getApplicationContext(), "Your request has been sent, please hold on!", Toast.LENGTH_LONG).show();
-
                     listenForUpdate(id);
                     Log.e(TAG, "sendClientRequest: customer request sent!");
                 } else {
@@ -1061,10 +1123,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     }
 
     private void listenForUpdate(String id) {
-
-        clientRequest = FirebaseFirestore.getInstance()
-                .collection("Users")
-                .document(id).collection("Request").document("ongoing");
 
         DocumentReference acceptanceUpdate = FirebaseFirestore.getInstance()
                 .collection("Users")
@@ -1083,6 +1141,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     if (documentSnapshot.getString("accepted").equals("Accepted")) {
                         Toast.makeText(MapActivity.this, "Your request have been accepted! Hold on for Client!", Toast.LENGTH_LONG).show();
 
+                        setJobDataOnCloud(id);
+
                     } else if (documentSnapshot.getString("accepted").equals("Declined")) {
                         //clear your request since it has been declined
                         acceptanceUpdate.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
@@ -1099,6 +1159,37 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
             }
         });
+    }
+
+
+    private void setJobDataOnCloud(String id) {
+        DocumentReference jobData = null;
+        jobData = FirebaseFirestore.getInstance()
+                .collection("Customers")
+                .document(FirebaseAuth.getInstance().getUid()).collection("JobData").document(id);
+        jobData.set(new JobData(id, getServiceProviderName, serviceProviderPhone, "Accepted", (long) 0, null, null, (long) 0, false, serviceRendered, hourlyRate)).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                Log.d("setJobData", "Job data set");
+            }
+        });
+
+        jobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, id, serviceProviderPhone, getServiceProviderName, (long) 0, (long) 1000, true,
+                false, false, serviceRendered, timeStamp, "Accepted", (long) 0))
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        Log.d("setJobData", "Job data set");
+                    }
+                });
+
+        /*//reset the variables for next request
+        jobData = null;
+        serviceProviderPhone = null;
+        getServiceProviderName = null;
+        serviceRendered = "";
+        hourlyRate = 0;*/
+
     }
 
 
@@ -1129,6 +1220,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             @Override
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
+                    serviceProviderPhone = "";
+                    getServiceProviderName = "";
+                    hourlyRate = 0;
+                    serviceRendered = "";
                     DocumentSnapshot doc = task.getResult();
                     String email = (String) doc.get("email");
                     String number = (String) doc.get("phoneNumber");
@@ -1136,6 +1231,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                     String rating = (String) doc.get("rating");
                     String jobType = (String) doc.get("profession");
                     Long hourly = (Long) doc.get("hourlyRate");
+
+                    serviceProviderPhone = number;
+                    getServiceProviderName = name;
+                    hourlyRate = hourly;
+                    serviceRendered = jobType;
 
                     assert hourly != null;
                     double hourlyRate = hourly.doubleValue();
@@ -1183,7 +1283,15 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                                 Toast.makeText(MapActivity.this, "The Service provider is engaged already", Toast.LENGTH_LONG).show();
 
                             } else {
-                                sendClientRequest(id);
+
+                                if (jobType.equalsIgnoreCase("Taxi") || jobType.equalsIgnoreCase("Trycycle(Keke)")) {
+
+                                    sendRideRequest(id, new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), (long) 1000);
+                                    setJobDataOnCloud(id);
+                                } else {
+                                    sendClientRequest(id);
+                                }
+
                             }
 
                             dialog.dismiss();
@@ -1203,6 +1311,40 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
         mdatabaseRef.removeValue();
 
+    }
+
+
+    public String getLocality() {
+
+        Location location = currentLocation;
+        String state = "";
+        Log.d("testinglocation", "location latitude" + location.getLatitude());
+        if (location.getLongitude() >= 7 && location.getLongitude() < 8) {// abuja's longitude
+            if (location.getLatitude() >= 9 && location.getLatitude() < 9.5) {// abuja's latitude
+                state = state + "Abuja";
+            }
+        } else if (location.getLongitude() >= 3 && location.getLongitude() < 4) {// lagos longitude
+            if (location.getLatitude() >= 6 && location.getLatitude() < 7) {// lagos latitude
+                state = state + "Lagos";
+            }
+        } else if (location.getLongitude() >= 9 && location.getLongitude() < 10) {// Bauchi longitude
+            if (location.getLatitude() >= 10 && location.getLatitude() < 11) {// Bauchi latitude
+                state = state + "Bauchi";
+            }
+        } else if (location.getLongitude() >= 7 && location.getLongitude() < 8) {// kaduna longitude
+            if (location.getLatitude() >= 10 && location.getLatitude() < 11) {// kaduna latitude
+                state = state + "Kaduna";
+            }
+        } else if (location.getLongitude() <= -122.0 && location.getLongitude() > -123.0) {// GooglePlex longitude
+            Log.d("stage1", "passed longitude");
+            if (location.getLatitude() >= 37.0 && location.getLatitude() < 38.0) {// GooglePlex latitude
+                state = state + "GooglePlex";
+            }
+        } else {
+            state = state + "StateNotFound";
+        }
+
+        return state;
     }
 
     @Override

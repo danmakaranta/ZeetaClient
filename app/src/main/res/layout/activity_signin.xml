@@ -42,11 +42,13 @@
             <Button
                 android:id="@+id/sign_in_button"
                 style="?android:textAppearanceSmall"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="30dp"
-                android:background="#40e0d0"
+                android:layout_marginStart="135dp"
+                android:layout_marginLeft="135dp"
                 android:text="@string/sign_in"
+                android:background="@drawable/custom_button"
                 android:textStyle="bold" />
 
             <RelativeLayout
