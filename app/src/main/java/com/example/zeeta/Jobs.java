@@ -105,7 +105,7 @@ public class Jobs extends AppCompatActivity {
                         Timestamp date = (Timestamp) document.getData().get("timeStamp");
                         String jobStatus = document.getData().get("status").toString();
                         String employeeID = document.getData().get("serviceProviderID").toString();
-                        String phonenumber = document.getData().get("serviceProviderPhone").toString();
+                        String phonenumber = document.getData().get("serviceProviderPhoneNumber").toString();
 
                         completedjobsList.add(new CompletedJobs(name, date, jobRendered, jobStatus, employeeID, phonenumber));
 
@@ -141,10 +141,13 @@ public class Jobs extends AppCompatActivity {
                                         public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                                             DocumentSnapshot doc = task.getResult();
                                             TextView hours = dialog.findViewById(R.id.invoice_hours);
+
+                                            Log.d("checking for:", "does this doc exist: " + doc.exists());
+
                                             Long hrs = (Long) doc.getData().get("hoursWorked");
                                             hours.setText("" + hrs);
                                             TextView total = dialog.findViewById(R.id.total_earned);
-                                            Double tot = (Double) doc.get("amount");
+                                            long tot = (long) doc.get("amount");
                                             total.setText("N" + tot);
                                             TextView hoursRate = dialog.findViewById(R.id.hours_rate);
                                             int hrate = (int) (tot / hrs);
