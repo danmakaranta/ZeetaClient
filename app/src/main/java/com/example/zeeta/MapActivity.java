@@ -1163,19 +1163,25 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
 
     private void setJobDataOnCloud(String id) {
+        DocumentReference spJobData = null;
         DocumentReference jobData = null;
         jobData = FirebaseFirestore.getInstance()
                 .collection("Customers")
                 .document(FirebaseAuth.getInstance().getUid()).collection("JobData").document(id);
-        jobData.set(new JobData(id, getServiceProviderName, serviceProviderPhone, "Accepted", (long) 0, null, null, (long) 0, false, serviceRendered, hourlyRate)).addOnCompleteListener(new OnCompleteListener<Void>() {
-            @Override
-            public void onComplete(@NonNull Task<Void> task) {
-                Log.d("setJobData", "Job data set");
-            }
-        });
+        spJobData = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id).collection("JobData").document(FirebaseAuth.getInstance().getUid());
 
         jobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, id, serviceProviderPhone, getServiceProviderName, (long) 0, (long) 1000, true,
-                false, false, serviceRendered, timeStamp, "Accepted", (long) 0))
+                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        Log.d("setJobData", "Job data set");
+                    }
+                });
+        spJobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, FirebaseAuth.getInstance().getUid(), serviceProviderPhone, getServiceProviderName, (long) 0, (long) 1000, true,
+                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
@@ -1283,14 +1289,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                                 Toast.makeText(MapActivity.this, "The Service provider is engaged already", Toast.LENGTH_LONG).show();
 
                             } else {
+                                setJobDataOnCloud(id);
+                               /* if (jobType.equalsIgnoreCase("Taxi") || jobType.equalsIgnoreCase("Trycycle(Keke)")) {
 
-                                if (jobType.equalsIgnoreCase("Taxi") || jobType.equalsIgnoreCase("Trycycle(Keke)")) {
-
-                                    sendRideRequest(id, new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), (long) 1000);
+                                    //sendRideRequest(id, new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), (long) 1000);
                                     setJobDataOnCloud(id);
                                 } else {
                                     sendClientRequest(id);
-                                }
+                                }*/
 
                             }
 

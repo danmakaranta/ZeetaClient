@@ -141,17 +141,27 @@ public class Jobs extends AppCompatActivity {
                                         public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                                             DocumentSnapshot doc = task.getResult();
                                             TextView hours = dialog.findViewById(R.id.invoice_hours);
+                                            Button paymentBtn = dialog.findViewById(R.id.make_payment);
 
-                                            Log.d("checking for:", "does this doc exist: " + doc.exists());
+                                            if (doc.exists()) {
+                                                Long hrs = (Long) doc.getData().get("hoursWorked");
+                                                hours.setText("" + hrs);
+                                                TextView total = dialog.findViewById(R.id.total_earned);
+                                                long tot = (long) doc.get("amount");
+                                                total.setText("N" + tot);
+                                                TextView hoursRate = dialog.findViewById(R.id.hours_rate);
+                                                int hrate = (int) (tot / hrs);
+                                                hoursRate.setText("N" + hrate);
+                                                paymentBtn.setOnClickListener(new View.OnClickListener() {
+                                                    @Override
+                                                    public void onClick(View v) {
+                                                        if (tot <= 0) {
+                                                            Toast.makeText(Jobs.this, "Request for an invoice from the " + jobData.getJob(), Toast.LENGTH_LONG).show();
+                                                        }
+                                                    }
+                                                });
+                                            }
 
-                                            Long hrs = (Long) doc.getData().get("hoursWorked");
-                                            hours.setText("" + hrs);
-                                            TextView total = dialog.findViewById(R.id.total_earned);
-                                            long tot = (long) doc.get("amount");
-                                            total.setText("N" + tot);
-                                            TextView hoursRate = dialog.findViewById(R.id.hours_rate);
-                                            int hrate = (int) (tot / hrs);
-                                            hoursRate.setText("N" + hrate);
 
                                             Button callBtn = dialog.findViewById(R.id.call);
                                             callBtn.setOnClickListener(new View.OnClickListener() {

@@ -20,13 +20,13 @@ public class GeneralJobData implements Parcelable {
             return new GeneralJobData[size];
         }
     };
-    private GeoPoint pickupLocation;
+    private GeoPoint serviceLocation;
     private GeoPoint destination;
     private GeoPoint serviceProviderLocation;
-    private String serviceProviderID;
+    private String serviceID;
     private String serviceRendered;
-    private String serviceProviderPhoneNumber;
-    private String serviceProviderName;
+    private String phoneNumber;
+    private String Name;
     private Long distanceCovered;
     private Long amountPaid;
     private Boolean accepted;
@@ -37,13 +37,13 @@ public class GeneralJobData implements Parcelable {
     private String status;
     private Long hoursWorked;
 
-    public GeneralJobData(GeoPoint pickupLocation, GeoPoint destination, GeoPoint serviceProviderLocation, String serviceProviderID, String serviceProviderPhoneNumber, String serviceProviderName, Long distanceCovered, Long amountPaid, Boolean accepted, Boolean started, Boolean ended, String serviceRendered, Timestamp timeStamp, String status, Long hoursWorked) {
-        this.pickupLocation = pickupLocation;
+    public GeneralJobData(GeoPoint serviceLocation, GeoPoint destination, GeoPoint serviceProviderLocation, String serviceID, String phoneNumber, String Name, Long distanceCovered, Long amountPaid, Boolean accepted, Boolean started, Boolean ended, String serviceRendered, Timestamp timeStamp, String status, Long hoursWorked) {
+        this.serviceLocation = serviceLocation;
         this.destination = destination;
         this.serviceProviderLocation = serviceProviderLocation;
-        this.serviceProviderID = serviceProviderID;
-        this.serviceProviderPhoneNumber = serviceProviderPhoneNumber;
-        this.serviceProviderName = serviceProviderName;
+        this.serviceID = serviceID;
+        this.phoneNumber = phoneNumber;
+        this.Name = Name;
         this.distanceCovered = distanceCovered;
         this.amountPaid = amountPaid;
         this.accepted = accepted;
@@ -56,9 +56,9 @@ public class GeneralJobData implements Parcelable {
     }
 
     protected GeneralJobData(Parcel in) {
-        serviceProviderID = in.readString();
-        serviceProviderPhoneNumber = in.readString();
-        serviceProviderName = in.readString();
+        serviceID = in.readString();
+        phoneNumber = in.readString();
+        Name = in.readString();
         if (in.readByte() == 0) {
             distanceCovered = null;
         } else {
@@ -85,12 +85,12 @@ public class GeneralJobData implements Parcelable {
         }
     }
 
-    public GeoPoint getPickupLocation() {
-        return pickupLocation;
+    public GeoPoint getServiceLocation() {
+        return serviceLocation;
     }
 
-    public void setPickupLocation(GeoPoint pickupLocation) {
-        this.pickupLocation = pickupLocation;
+    public void setServiceLocation(GeoPoint serviceLocation) {
+        this.serviceLocation = serviceLocation;
     }
 
     public GeoPoint getDestination() {
@@ -109,28 +109,28 @@ public class GeneralJobData implements Parcelable {
         this.serviceProviderLocation = serviceProviderLocation;
     }
 
-    public String getServiceProviderID() {
-        return serviceProviderID;
+    public String getServiceID() {
+        return serviceID;
     }
 
-    public void setServiceProviderID(String serviceProviderID) {
-        this.serviceProviderID = serviceProviderID;
+    public void setServiceID(String serviceID) {
+        this.serviceID = serviceID;
     }
 
-    public String getServiceProviderPhoneNumber() {
-        return serviceProviderPhoneNumber;
+    public String getPhoneNumber() {
+        return phoneNumber;
     }
 
-    public void setServiceProviderPhoneNumber(String serviceProviderPhoneNumber) {
-        this.serviceProviderPhoneNumber = serviceProviderPhoneNumber;
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 
-    public String getServiceProviderName() {
-        return serviceProviderName;
+    public String getName() {
+        return Name;
     }
 
-    public void setServiceProviderName(String serviceProviderName) {
-        this.serviceProviderName = serviceProviderName;
+    public void setName(String name) {
+        this.Name = name;
     }
 
     public Long getDistanceCovered() {
@@ -212,9 +212,9 @@ public class GeneralJobData implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeString(serviceProviderID);
-        dest.writeString(serviceProviderPhoneNumber);
-        dest.writeString(serviceProviderName);
+        dest.writeString(serviceID);
+        dest.writeString(phoneNumber);
+        dest.writeString(Name);
         if (distanceCovered == null) {
             dest.writeByte((byte) 0);
         } else {
