@@ -32,7 +32,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.zeeta.data.GeneralJobData;
-import com.example.zeeta.data.JobData;
 import com.example.zeeta.data.StaffFound;
 import com.example.zeeta.models.PolylineData;
 import com.example.zeeta.models.RequestInformation;
@@ -504,6 +503,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
+    private String requestedService;
+
     private void executeService() {
         selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
         if (selectedServices != null && selectedServices.size() >= 1) {
@@ -512,13 +513,13 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                 String serv = null;
                 serv = "" + selectedServices.get(i);
+                requestedService = serv;
 
                 if (currentLocation != null) {
 
                 }
                 DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
                 geoFire = new GeoFire(ref);
-
                 serviceFound = false;
                 RADIUS = 20;
                 getClientRequest(); //get the service, if found, pin it to map with custom marker
@@ -680,18 +681,27 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                             } else {
                                 if (markerList.size() <= 0) {
 
-                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title("Zeeta Partner"));
+                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
                                     staffMarker.setTag(key);
-                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                    //choose icon type for transport or other service
+                                    if (requestedService.equalsIgnoreCase("Taxi") || requestedService.equalsIgnoreCase("Trycycle(Keke)")) {
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car64));
+                                    } else {
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                    }
                                     moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                     markerList.add(staffMarker);
                                 } else {
                                     if (markerContains(key)) {
 
                                     } else {
-                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title("Zeeta Partner"));
+                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
                                         staffMarker.setTag(key);
-                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                        if (requestedService.equalsIgnoreCase("Taxi") || requestedService.equalsIgnoreCase("Trycycle(Keke)")) {
+                                            staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car64));
+                                        } else {
+                                            staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                        }
                                         moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                         markerList.add(staffMarker);
                                     }
@@ -703,15 +713,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                         @Override
                         public void onKeyExited(String key) {
-                           /* DocumentReference deleteRequest = FirebaseFirestore.getInstance()
-                                    .collection("Users")
-                                    .document(key).collection("Request").document("ongoing"); // testi
-                            deleteRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                @Override
-                                public void onComplete(@NonNull Task<Void> task) {
 
-                                }
-                            });*/
 
                         }
 
@@ -744,7 +746,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     }
 
     private void moveCamera(LatLng latlng, float zoom, String title) {
-        Log.d(TAG, "moveCamera: moving camera to current latitude:" + latlng.latitude + " longitude" + latlng.longitude);
+
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoom));
 
     }
@@ -985,14 +987,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                 assert documentSnapshot != null;
                 if (documentSnapshot.exists()) {
-                    String temp = documentSnapshot.getString("accepted");
+                   /* String temp = documentSnapshot.getString("accepted");
                     if (temp != null) {
                         if (temp.equalsIgnoreCase("accepted") || temp.equalsIgnoreCase("awaiting")) {
                             serviceProviderAcceptanceStatus = true;
                             acceptance[0] = true;
                             Log.d("Statusss:", "Statusessss: " + temp + id);
                         }
-                    }
+                    }*/
 
                 } else {
                     serviceProviderAcceptanceStatus = false;
@@ -1067,8 +1069,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                                 Log.d(TAG, "Current data: " + documentSnapshot.getData());
                                 Boolean accepted = documentSnapshot.getBoolean("accepted");
                                 if (accepted) {
-                                    //listen for ride data here
-                                    listenForRideUpdate();
+
                                     Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
                                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && !accepted) {
 
@@ -1095,15 +1096,12 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    private void listenForRideUpdate() {
-    }
 
     private void sendClientRequest(String id) {
 
         DocumentReference clientRequest = FirebaseFirestore.getInstance()
                 .collection("Users")
                 .document(id).collection("Request").document("ongoing");
-
 
         RequestInformation requestData = new RequestInformation(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), FirebaseAuth.getInstance().getUid(), "Awaiting");
 
@@ -1289,17 +1287,9 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                                 Toast.makeText(MapActivity.this, "The Service provider is engaged already", Toast.LENGTH_LONG).show();
 
                             } else {
-                                setJobDataOnCloud(id);
-                               /* if (jobType.equalsIgnoreCase("Taxi") || jobType.equalsIgnoreCase("Trycycle(Keke)")) {
-
-                                    //sendRideRequest(id, new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), (long) 1000);
-                                    setJobDataOnCloud(id);
-                                } else {
-                                    sendClientRequest(id);
-                                }*/
-
+                                //setJobDataOnCloud(id);
+                                sendClientRequest(id);
                             }
-
                             dialog.dismiss();
                         }
                     });

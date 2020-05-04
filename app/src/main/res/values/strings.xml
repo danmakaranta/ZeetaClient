@@ -78,6 +78,7 @@
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="fullname">Enter Full Name</string>
     <string name="title_activity_start_page">StartPage</string>
+    <string name="ride_information">Ride Information:</string>
 
 
 </resources>
