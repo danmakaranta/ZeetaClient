@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Zeeta</string>
     <string name="google_maps_api_key">AIzaSyDtZoloBYNpnid7QJG_3xzm-Skay3S0oBs</string>
+    <string name="google_places_api_key">AIzaSyAUvaW9jxRVffc4YM-wgbqKdgWd89pkq4I</string>
     <string name="prompt_email">Email</string>
     <string name="prompt_password">Password</string>
     <string name="action_sign_in">Sign in or register</string>
@@ -55,6 +56,14 @@
     <string name="sos">SOS</string>
     <string name="home">Home</string>
     <string name="go_live">Go Online</string>
+    <string name="autocomplete_hint">Enter place name or address</string>
+    <string name="selected_place">Last Selected Place:</string>
+    <string name="clear_text">Clear Text</string>
+
+    <!-- getString(String, Object...) does not support HTML tags directly, they need to be encoded first.
+    Original string: <b>%1$s</b><br/><i>Place Id: %2$s</i><br/>Address: %3$s<br/>Phone: %4$s<br/>Website: %5$s-->
+    <string name="place_details">&lt;b&gt;%1$s&lt;/b&gt;&lt;br/&gt;&lt;i&gt;Place Id: %2$s&lt;/i&gt;&lt;br/&gt;Address: %3$s&lt;br/&gt;Phone: %4$s&lt;br/&gt;Website: %5$s</string>
+
     <string name="connects">Connects: 0</string>
     <string name="rating">Rating</string>
     <string name="title_activity_main2">Main2Activity</string>

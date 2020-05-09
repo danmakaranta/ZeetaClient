@@ -15,6 +15,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
@@ -66,6 +67,7 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
     public void registerNewEmail(final String email, String password, final String phoneNumber, final String fullName) {
 
         showDialog();
+        FirebaseAuth mAuth = FirebaseAuth.getInstance();
 
         FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
@@ -80,6 +82,7 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
                             user.setUser_id(FirebaseAuth.getInstance().getUid());
                             user.setPhoneNumber(phoneNumber);
                             user.setNewUser(true);
+
 
                             FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
                                     .setTimestampsInSnapshotsEnabled(true)

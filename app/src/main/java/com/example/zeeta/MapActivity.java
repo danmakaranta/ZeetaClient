@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
@@ -17,20 +18,29 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Html;
+import android.text.Spanned;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
+import android.view.inputmethod.EditorInfo;
+import android.widget.AdapterView;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.zeeta.adapters.PlaceAutoSuggestionAdapter;
 import com.example.zeeta.data.GeneralJobData;
 import com.example.zeeta.data.StaffFound;
 import com.example.zeeta.models.PolylineData;
@@ -44,8 +54,13 @@ import com.firebase.geofire.GeoQuery;
 import com.firebase.geofire.GeoQueryEventListener;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.AutocompletePrediction;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.PlaceBufferResponse;
+import com.google.android.gms.location.places.Places;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -58,6 +73,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.RuntimeRemoteException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
@@ -84,6 +100,8 @@ import com.google.maps.PendingResult;
 import com.google.maps.internal.PolylineEncoding;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.DirectionsRoute;
+import com.google.maps.model.Distance;
+import com.google.android.gms.location.places.GeoDataClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -100,7 +118,7 @@ import androidx.fragment.app.FragmentActivity;
 import static com.example.zeeta.util.Constants.PERMISSIONS_REQUEST_ENABLE_GPS;
 
 
-public class MapActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, GoogleMap.OnInfoWindowClickListener, GoogleMap.OnPolylineClickListener {
+public class MapActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, GoogleMap.OnInfoWindowClickListener, GoogleMap.OnPolylineClickListener, GoogleApiClient.OnConnectionFailedListener {
 
     private static final String TAG = "MapActivity";
     private static final int ERROR_DIALOG_REQUEST = 9001;
@@ -135,6 +153,13 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private GeoApiContext mGeoApiContext;
     private Handler mHandler = new Handler();
     public Criteria criteria;
+    private static final LatLngBounds BOUNDS_GREATER_SYDNEY = new LatLngBounds(
+            new LatLng(-34.041458, 150.790100), new LatLng(-33.682247, 151.383362));
+    /**
+     * GeoDataClient wraps our service connection to Google Play services and provides access
+     * to the Google Places API for Android.
+     */
+    protected GeoDataClient mGeoDataClient;
     //vars
     private @ServerTimestamp
     Date clientTimeStamp, staffTimeStamp;
@@ -152,14 +177,24 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     public String bestProvider;
     DocumentReference clientRequest;
     private int tyingNum;
+    //progress bars for geolocation
+    private ProgressBar pickUpP;
     private String serviceProviderPhone;
     private String getServiceProviderName;
     private GeoPoint serviceProviderLocation;
     private GeoPoint pickupLocation;
     private GeoPoint destination;
+    private ProgressBar destinationPBar;
     private String locality = "StateNotFound";
     private @ServerTimestamp
     Timestamp timeStamp;
+    private String serv = null;
+    private long distanceCovered;
+    private String serviceProviderName;
+    private PlaceAutocompleteAdapter mAdapter;
+    private AutoCompleteTextView mAutocompleteView;
+    private TextView mPlaceDetailsText;
+    private TextView mPlaceDetailsAttribution;
 
     //for adding a custom marker,
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId){
@@ -183,6 +218,46 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         mMap.clear();
         startActivity(new Intent(getApplicationContext(), Request.class));
     }
+
+    /**
+     * Callback for results from a Places Geo Data Client query that shows the first place result in
+     * the details view on screen.
+     */
+    private OnCompleteListener<PlaceBufferResponse> mUpdatePlaceDetailsCallback
+            = new OnCompleteListener<PlaceBufferResponse>() {
+        @Override
+        public void onComplete(Task<PlaceBufferResponse> task) {
+            try {
+                PlaceBufferResponse places = task.getResult();
+
+                // Get the Place object from the buffer.
+                final Place place = places.get(0);
+
+                // Format details of the place for display and show it in a TextView.
+                mPlaceDetailsText.setText(formatPlaceDetails(getResources(), place.getName(),
+                        place.getId(), place.getAddress(), place.getPhoneNumber(),
+                        place.getWebsiteUri()));
+
+                // Display the third party attributions if set.
+                final CharSequence thirdPartyAttribution = places.getAttributions();
+                if (thirdPartyAttribution == null) {
+                    mPlaceDetailsAttribution.setVisibility(View.GONE);
+                } else {
+                    mPlaceDetailsAttribution.setVisibility(View.VISIBLE);
+                    mPlaceDetailsAttribution.setText(
+                            Html.fromHtml(thirdPartyAttribution.toString()));
+                }
+
+                Log.i(TAG, "Place details received: " + place.getName());
+
+                places.release();
+            } catch (RuntimeRemoteException e) {
+                // Request did not complete successfully
+                Log.e(TAG, "Place query did not complete.", e);
+                return;
+            }
+        }
+    };
 
     private void getLastKnownLocation() {
         Log.d(TAG, "getLastKnownLocation: called.");
@@ -295,6 +370,42 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         id = null;
         return staffOccupation;
     }
+
+    /**
+     * Listener that handles selections from suggestions from the AutoCompleteTextView that
+     * displays Place suggestions.
+     * Gets the place id of the selected item and issues a request to the Places Geo Data Client
+     * to retrieve more details about the place.
+     *
+     * @see GeoDataClient#getPlaceById(String...)
+     */
+    private AdapterView.OnItemClickListener mAutocompleteClickListener
+            = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            /*
+             Retrieve the place ID of the selected item from the Adapter.
+             The adapter stores each Place suggestion in a AutocompletePrediction from which we
+             read the place ID and title.
+              */
+            final AutocompletePrediction item = mAdapter.getItem(position);
+            final String placeId = item.getPlaceId();
+            final CharSequence primaryText = item.getPrimaryText(null);
+
+            Log.i(TAG, "Autocomplete item selected: " + primaryText);
+
+            /*
+             Issue a request to the Places Geo Data Client to retrieve a Place object with
+             additional details about the place.
+              */
+            Task<PlaceBufferResponse> placeResult = mGeoDataClient.getPlaceById(placeId);
+            placeResult.addOnCompleteListener(mUpdatePlaceDetailsCallback);
+
+            Toast.makeText(getApplicationContext(), "Clicked: " + primaryText,
+                    Toast.LENGTH_SHORT).show();
+            Log.i(TAG, "Called getPlaceById to get Place details for " + placeId);
+        }
+    };
 
     private void calculateDirections(GeoPoint gp) {
         Log.d(TAG, "calculateDirections: calculating directions.");
@@ -440,92 +551,19 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
-        getDeviceLocation();
-        RADIUS = 20;
-        serviceFound = false;
-        keyIDs = new ArrayList();
-        keysFound = new ArrayList<StaffFound>();
-        serviceProviderAcceptanceStatus = false;
-
-        tyingNum = 0;
-
-
-        setContentView(R.layout.activity_map);
-        selectedServiceData = new ArrayList();
-
-        serviceIntent = new Intent(MapActivity.this, LocationService.class);
-
-
-        mDb = FirebaseFirestore.getInstance();
-
-        markerPinned = false;
-        if (mGeoApiContext == null) {
-            mGeoApiContext = new GeoApiContext.Builder()
-                    .apiKey(getString(R.string.google_maps_api_key))
-                    .build();
-        }
-
-        //initialize and assign variables for the bottom navigation
-        BottomNavigationView bottomNavigationView = findViewById(R.id.nav_view);
-        //set home icon selected
-        bottomNavigationView.setSelectedItemId(R.id.home_button);
-        //perform itemselectedlistener
-        bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
-            @Override
-            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
-                switch (menuItem.getItemId()) {
-                    case R.id.home_button:
-                        return true;
-                    case R.id.jobs_button:
-                        startActivity(new Intent(getApplicationContext(), Jobs.class).putExtra("RequestedServices", selectedServices));
-                        overridePendingTransition(0, 0);
-                        //getUserLocations();
-                        return true;
-                    case R.id.dashboard_button:
-                        startActivity(new Intent(getApplicationContext(), DashBoard.class).putExtra("RequestedServices", selectedServices));
-                        overridePendingTransition(0, 0);
-                        return true;
-                    case R.id.sos_button:
-                        /*startActivity(new Intent(getApplicationContext(), DashBoard.class));
-                        overridePendingTransition(0, 0);
-                        return true;   */
-
-                }
-                return false;
-            }
-        });
-
-        executeService();
+    private static Spanned formatPlaceDetails(Resources res, CharSequence name, String id,
+                                              CharSequence address, CharSequence phoneNumber, Uri websiteUri) {
+        Log.e(TAG, res.getString(R.string.place_details, name, id, address, phoneNumber,
+                websiteUri));
+        return Html.fromHtml(res.getString(R.string.place_details, name, id, address, phoneNumber,
+                websiteUri));
 
     }
 
     private String requestedService;
 
-    private void executeService() {
-        selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
-        if (selectedServices != null && selectedServices.size() >= 1) {
-
-            for (int i = 0; i <= selectedServices.size() - 1; i++) {
-
-                String serv = null;
-                serv = "" + selectedServices.get(i);
-                requestedService = serv;
-
-                if (currentLocation != null) {
-
-                }
-                DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
-                geoFire = new GeoFire(ref);
-                serviceFound = false;
-                RADIUS = 20;
-                getClientRequest(); //get the service, if found, pin it to map with custom marker
-            }
-
-        }
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
     }
 
@@ -618,40 +656,120 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return false;
     }
 
-    private void init() {
-        geolocate();
-       /* mSearchText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+    private long calculateDistance(GeoPoint pickupL, GeoPoint dest) {
+
+        com.google.maps.model.LatLng destination = new com.google.maps.model.LatLng(
+                dest.getLatitude(),
+                dest.getLongitude()
+        );
+
+        DirectionsApiRequest directions = new DirectionsApiRequest(mGeoApiContext);
+
+        directions.alternatives(true);
+        directions.origin(
+                new com.google.maps.model.LatLng(
+                        pickupL.getLatitude(),
+                        pickupL.getLongitude()
+                )
+        );
+
+        final Distance[] distance = new Distance[1];
+        final long[] dista = new long[1];
+        //distanceCovered = 0;
+
+        directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
             @Override
-            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-
-                if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE || event.getAction() == event.ACTION_DOWN || event.getAction() == event.KEYCODE_ENTER) {
-
+            public void onResult(DirectionsResult result) {
+                distance[0] = result.routes[0].legs[0].distance;
+                if (result.routes[0].legs[0].distance.inMeters > 5) {
+                    distanceCovered = result.routes[0].legs[0].distance.inMeters;
                 }
-
-                return false;
+                Log.d(TAG, "calculateDirections: duration: " + result.routes[0].legs[0].duration);
+                Log.d(TAG, "calculateDirections: distance: " + result.routes[0].legs[0].distance);
+                Log.d(TAG, "calculateDirections: distance: " + distanceCovered);
+                Log.d(TAG, "calculateDirections: geocodedWayPointz: " + result.geocodedWaypoints[0].toString());
             }
-        });*/
 
+            @Override
+            public void onFailure(Throwable e) {
+                Log.e("CalculateDirectionExcp", "calculateDirections: Failed to get directions: " + e.getMessage());
+            }
+        });
+        //Log.d(TAG, "calculateDirections: distance: outside " + distanceCovered);
+        if (distanceCovered <= 0) {
+            Log.d(TAG, "Recursive times");
+            return calculateDistance(pickupL, dest);
+        } else {
+            return distanceCovered;
+        }
 
     }
 
-    private void geolocate() {
-        String searchString ="hmedix";
-        // create a geocoder object
-        Geocoder geocoder = new Geocoder(MapActivity.this);
-        List<Address> list = new ArrayList();
-        try {
-            list = geocoder.getFromLocationName(searchString, 1);
-        } catch (IOException e) {
-            Log.d(TAG, "geolocate: input was wrong");
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
+        getDeviceLocation();
+        RADIUS = 20;
+        serviceFound = false;
+        keyIDs = new ArrayList();
+        keysFound = new ArrayList<StaffFound>();
+        serviceProviderAcceptanceStatus = false;
+
+        // Construct a GeoDataClient for the Google Places API for Android.
+        mGeoDataClient = Places.getGeoDataClient(this, null);
+
+        tyingNum = 0;
+
+
+        setContentView(R.layout.activity_map);
+        selectedServiceData = new ArrayList();
+
+        serviceIntent = new Intent(MapActivity.this, LocationService.class);
+
+
+        mDb = FirebaseFirestore.getInstance();
+        //for places API
+        //AIzaSyAUvaW9jxRVffc4YM-wgbqKdgWd89pkq4I
+
+        markerPinned = false;
+        if (mGeoApiContext == null) {
+            mGeoApiContext = new GeoApiContext.Builder()
+                    .apiKey(getString(R.string.google_places_api_key))
+                    .build();
         }
 
-        if (list.size() > 0) {
-            Address address = list.get(0);
-            //now move the camera to the location
-            //  moveCamera(new LatLng(address.getLatitude(), address.getLongitude()), DEFAULT_ZOOM, address.getAddressLine(0));
-        }
+        //initialize and assign variables for the bottom navigation
+        BottomNavigationView bottomNavigationView = findViewById(R.id.nav_view);
+        //set home icon selected
+        bottomNavigationView.setSelectedItemId(R.id.home_button);
+        //perform itemselectedlistener
+        bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+                switch (menuItem.getItemId()) {
+                    case R.id.home_button:
+                        return true;
+                    case R.id.jobs_button:
+                        startActivity(new Intent(getApplicationContext(), Jobs.class).putExtra("RequestedServices", selectedServices));
+                        overridePendingTransition(0, 0);
+                        //getUserLocations();
+                        return true;
+                    case R.id.dashboard_button:
+                        startActivity(new Intent(getApplicationContext(), DashBoard.class).putExtra("RequestedServices", selectedServices));
+                        overridePendingTransition(0, 0);
+                        return true;
+                    case R.id.sos_button:
+                        /*startActivity(new Intent(getApplicationContext(), DashBoard.class));
+                        overridePendingTransition(0, 0);
+                        return true;   */
 
+                }
+                return false;
+            }
+        });
+
+        executeService();
     }
 
     private void getClientRequest() {
@@ -765,10 +883,28 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         }
     }
 
-    private void initMap() {// for initializing the map
-        Log.d(TAG, "initMap: initializing map");
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(MapActivity.this);
+    private void executeService() {
+        selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
+        if (selectedServices != null && selectedServices.size() >= 1) {
+
+            for (int i = 0; i <= selectedServices.size() - 1; i++) {
+
+
+                serv = "" + selectedServices.get(i);
+                requestedService = serv;
+
+                if (currentLocation != null) {
+
+                }
+                DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
+                geoFire = new GeoFire(ref);
+                serviceFound = false;
+                RADIUS = 20;
+                getClientRequest(); //get the service, if found, pin it to map with custom marker
+            }
+
+        }
+
     }
 
     private void getLocationPermission() {
@@ -1008,15 +1144,46 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    @Override
-    public void onInfoWindowClick(Marker marker) {
+    private void init() {
+        // geolocate();
+        mSearchText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
 
+                if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE || event.getAction() == event.ACTION_DOWN || event.getAction() == event.KEYCODE_ENTER) {
+
+                }
+
+                return false;
+            }
+        });
+
+    }
+
+    private void geolocate(String searchString, String location) {
+
+        // create a geocoder object
+        Geocoder geocoder = new Geocoder(MapActivity.this);
+        List<Address> list = new ArrayList();
         try {
-
-            getServiceProviderDetails(marker.getTag().toString());
+            list = geocoder.getFromLocationName(searchString, 5);
 
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.d(TAG, "geolocate: input was wrong");
+        }
+
+        if (list.size() > 0) {
+            Address address = list.get(0);
+            if (location.equalsIgnoreCase("pickup")) {
+                pickupLocation = new GeoPoint(address.getLatitude(), address.getLongitude());
+                Log.d(TAG, "geolocate: input was right: " + pickupLocation);
+                pickUpP.setVisibility(View.INVISIBLE);
+            } else {
+                destination = new GeoPoint(address.getLatitude(), address.getLongitude());
+                Log.d(TAG, "geolocate: input was right: " + destination);
+                destinationPBar.setVisibility(View.INVISIBLE);
+            }
+
         }
 
     }
@@ -1159,41 +1326,17 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
-
-    private void setJobDataOnCloud(String id) {
-        DocumentReference spJobData = null;
-        DocumentReference jobData = null;
-        jobData = FirebaseFirestore.getInstance()
-                .collection("Customers")
-                .document(FirebaseAuth.getInstance().getUid()).collection("JobData").document(id);
-        spJobData = FirebaseFirestore.getInstance()
-                .collection("Users")
-                .document(id).collection("JobData").document(FirebaseAuth.getInstance().getUid());
-
-        jobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, id, serviceProviderPhone, getServiceProviderName, (long) 0, (long) 1000, true,
-                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
-                .addOnCompleteListener(new OnCompleteListener<Void>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        Log.d("setJobData", "Job data set");
-                    }
-                });
-        spJobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, FirebaseAuth.getInstance().getUid(), serviceProviderPhone, getServiceProviderName, (long) 0, (long) 1000, true,
-                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
-                .addOnCompleteListener(new OnCompleteListener<Void>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        Log.d("setJobData", "Job data set");
-                    }
-                });
-
-        /*//reset the variables for next request
-        jobData = null;
-        serviceProviderPhone = null;
-        getServiceProviderName = null;
-        serviceRendered = "";
-        hourlyRate = 0;*/
-
+    private void initMap() {// for initializing the map
+        Log.d(TAG, "initMap: initializing map");
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        mapFragment.getMapAsync(MapActivity.this);
+       /* mGoogleApiClient = new GoogleApiClient
+                .Builder(this)
+                .addApi(Places.GEO_DATA_API)
+                .addApi(Places.PLACE_DETECTION_API)
+                .enableAutoManage(this, this)
+                .build();
+*/
     }
 
 
@@ -1309,10 +1452,198 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+
+        try {
+            if (serv.equalsIgnoreCase("Taxi") || serv.equalsIgnoreCase("Trycycle(Keke)")) {
+                getZeetaDriver(marker.getTag().toString());
+            } else {
+                getServiceProviderDetails(marker.getTag().toString());
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+    }
+
+    private void getZeetaDriver(String id) {
+        DocumentReference driverDetails = null;
+
+        // custom dialog
+        final Dialog dialog = new Dialog(MapActivity.this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.ride_request_page);
+        dialog.setTitle("Send Request?");
+        pickUpP = dialog.findViewById(R.id.pickupProgressBar);
+        destinationPBar = dialog.findViewById(R.id.destinationProgressBar);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            driverDetails = FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(id);
+        }
+
+
+        driverDetails.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+
+                if (task.isSuccessful()) {
+                    serviceProviderPhone = "";
+                    serviceProviderName = "";
+                    pickupLocation = null;
+                    destination = null;
+                    serviceProviderLocation = null;
+                    serviceRendered = "";
+                    AutoCompleteTextView pickET = dialog.findViewById(R.id.pickup_input);
+                    AutoCompleteTextView destinationET = dialog.findViewById(R.id.destination_input);
+
+                    pickET.setAdapter(new PlaceAutoSuggestionAdapter(MapActivity.this, android.R.layout.simple_list_item_1));
+                    destinationET.setAdapter(new PlaceAutoSuggestionAdapter(MapActivity.this, android.R.layout.simple_list_item_1));
+                   /* //trying out another adapter
+                    // Retrieve the AutoCompleteTextView that will display Place suggestions.
+                    mAutocompleteView = dialog.findViewById(R.id.pickup_input);
+
+                    // Register a listener that receives callbacks when a suggestion has been selected
+                    mAutocompleteView.setOnItemClickListener(mAutocompleteClickListener);
+                    // Retrieve the TextViews that will display details and attributions of the selected place.
+                    mPlaceDetailsText = (TextView) dialog.findViewById(R.id.place_details);
+                    mPlaceDetailsAttribution = (TextView) dialog.findViewById(R.id.place_attribution);
+                    // Set up the adapter that will retrieve suggestions from the Places Geo Data Client.
+                    mAdapter = new PlaceAutocompleteAdapter(dialog.getContext(), mGeoDataClient, BOUNDS_GREATER_SYDNEY, null);
+                    mAutocompleteView.setAdapter(mAdapter);*/
+
+                    TextView rideEst = dialog.findViewById(R.id.ride_estimate);
+
+                    //fetch driver details
+                    DocumentSnapshot doc = task.getResult();
+                    String vehicleType = (String) doc.get("vehicleType");
+                    String number = (String) doc.get("phoneNumber");
+                    String name = (String) doc.get("name");
+                    String rating = (String) doc.get("rating");
+                    String vehicleNumber = (String) doc.get("vehicleNumber");
+
+                    //assign variable for update
+                    serviceRendered = serv;
+                    serviceProviderPhone = number;
+                    serviceProviderName = name;
+
+                    // hide all the progress bars until when needed
+                    pickUpP.setVisibility(View.INVISIBLE);
+                    destinationPBar.setVisibility(View.INVISIBLE);
+
+                    TextView textName = (TextView) dialog.findViewById(R.id.driver_name);
+                    textName.setText("" + serviceProviderName);
+                    TextView textVehicleType = (TextView) dialog.findViewById(R.id.vehicle_type);
+                    textVehicleType.setText("" + vehicleType);
+                    TextView textVehicleNumber = (TextView) dialog.findViewById(R.id.vehicle_licence);
+                    textVehicleNumber.setText("" + vehicleNumber);
+
+                    pickET.setOnKeyListener(new View.OnKeyListener() {
+                        @Override
+                        public boolean onKey(View v, int keyCode, KeyEvent event) {
+
+                            pickUpP.setVisibility(View.VISIBLE);
+                            geolocate(pickET.getText().toString(), "pickup");
+                            return false;
+                        }
+                    });
+
+
+                    destinationET.setOnKeyListener(new View.OnKeyListener() {
+                        @Override
+                        public boolean onKey(View v, int keyCode, KeyEvent event) {
+
+                            destinationPBar.setVisibility(View.VISIBLE);
+                            geolocate(destinationET.getText().toString(), "destination");
+                            if (destination != null && pickupLocation != null) {
+                                Log.d("distance", "Distance to be covered: " + calculateDistance(pickupLocation, destination));
+                                long estimate = (calculateDistance(pickupLocation, destination)) / 1000 * 100;
+                                String estm = "N" + estimate;
+                                rideEst.setText(estm);
+                            }
+                            return false;
+                        }
+                    });
+
+                }
+                dialog.show();
+
+                Button cancel = dialog.findViewById(R.id.cancel_ride_request);
+                cancel.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        dialog.dismiss();
+                    }
+                });
+            }
+
+        });
+
+
+    }
+
+    private void setJobDataOnCloud(String id) {
+        DocumentReference spJobData = null;
+        DocumentReference jobData = null;
+        jobData = FirebaseFirestore.getInstance()
+                .collection("Customers")
+                .document(FirebaseAuth.getInstance().getUid()).collection("JobData").document(id);
+        spJobData = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id).collection("JobData").document(FirebaseAuth.getInstance().getUid());
+
+        jobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, id, serviceProviderPhone, serviceProviderName, (long) 0, (long) 1000, true,
+                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        Log.d("setJobData", "Job data set");
+                    }
+                });
+        spJobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, FirebaseAuth.getInstance().getUid(), serviceProviderPhone, getServiceProviderName, (long) 0, (long) 1000, true,
+                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        Log.d("setJobData", "Job data set");
+                    }
+                });
+
+        /*//reset the variables for next request
+        jobData = null;
+        serviceProviderPhone = null;
+        getServiceProviderName = null;
+        serviceRendered = "";
+        hourlyRate = 0;*/
+
+    }
 
     public String getLocality() {
 
         Location location = currentLocation;
+
         String state = "";
         Log.d("testinglocation", "location latitude" + location.getLatitude());
         if (location.getLongitude() >= 7 && location.getLongitude() < 8) {// abuja's longitude
@@ -1343,23 +1674,5 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return state;
     }
 
-    @Override
-    public void onLocationChanged(Location location) {
 
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-
-    }
 }

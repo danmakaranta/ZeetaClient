@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="280dp"
-    android:layout_height="460dp">
+    android:layout_height="465dp">
 
     <TextView
         android:id="@+id/textView2"
@@ -40,7 +40,7 @@
         tools:layout_editor_absoluteX="1dp"
         tools:layout_editor_absoluteY="90dp">
 
-        <EditText
+        <AutoCompleteTextView
             android:id="@+id/pickup_input"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -82,7 +82,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView4">
 
-        <EditText
+        <AutoCompleteTextView
             android:id="@+id/destination_input"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -114,7 +114,7 @@
         app:layout_constraintTop_toBottomOf="@+id/destination_layout" />
 
     <TextView
-        android:id="@+id/textView6"
+        android:id="@+id/ride_estimate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
@@ -131,7 +131,7 @@
         android:layout_marginTop="10dp"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView6">
+        app:layout_constraintTop_toBottomOf="@+id/ride_estimate">
 
         <Button
             android:id="@+id/ride_request_button"
@@ -146,12 +146,13 @@
             app:layout_constraintVertical_bias="0.0" />
 
         <Button
-            android:id="@+id/cancel_request_information"
+            android:id="@+id/cancel_ride_request"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginLeft="30dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/custom_button3"
+            android:layout_marginStart="30dp"
             android:text="@android:string/cancel" />
 
     </LinearLayout>

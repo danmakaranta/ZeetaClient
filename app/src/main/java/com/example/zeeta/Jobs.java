@@ -113,7 +113,6 @@ public class Jobs extends AppCompatActivity {
                         ListView myListView = (ListView) findViewById(R.id.jobs_completed2);
                         myListView.setAdapter(myAdapter);
 
-
                         myListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                             @Override
                             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
