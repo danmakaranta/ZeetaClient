@@ -67,7 +67,6 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
     public void registerNewEmail(final String email, String password, final String phoneNumber, final String fullName) {
 
         showDialog();
-        FirebaseAuth mAuth = FirebaseAuth.getInstance();
 
         FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
@@ -82,7 +81,6 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
                             user.setUser_id(FirebaseAuth.getInstance().getUid());
                             user.setPhoneNumber(phoneNumber);
                             user.setNewUser(true);
-
 
                             FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
                                     .setTimestampsInSnapshotsEnabled(true)
@@ -109,10 +107,10 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
 
                         } else {
                             View parentLayout = findViewById(android.R.id.content);
-                            Snackbar.make(parentLayout, "Something went wrong.", Snackbar.LENGTH_SHORT).show();
+                            Snackbar.make(parentLayout, "Something went wrong  with registration." + task.toString(), Snackbar.LENGTH_SHORT).show();
+                            Log.d("reg error:", "Something went wrong  with registration." + task.toString());
                             hideDialog();
                         }
-
                         // ...
                     }
                 });

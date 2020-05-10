@@ -63,7 +63,6 @@ public class Signin extends AppCompatActivity implements
     private void setupFirebaseAuth() {
         Log.d(TAG, "setupFirebaseAuth: started.");
 
-
         mAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
@@ -88,13 +87,12 @@ public class Signin extends AppCompatActivity implements
                                 Log.d(TAG, "onComplete: successfully set the user client.");
                                 com.example.zeeta.models.User user = task.getResult().toObject(User.class);
                                 ((UserClient) (getApplicationContext())).setUser(user);
+                                Intent intent = new Intent(Signin.this, Request.class);
+                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                startActivity(intent);
                             }
                         }
                     });
-
-                    Intent intent = new Intent(Signin.this, Request.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
 
                 } else {
                     // User is signed out
@@ -142,14 +140,16 @@ public class Signin extends AppCompatActivity implements
                     .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
                         @Override
                         public void onComplete(@NonNull Task<AuthResult> task) {
-
-                            showDialog();
+                            if (task.isSuccessful()) {
+                                showDialog();
+                            }
 
                         }
                     }).addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception e) {
                     Toast.makeText(Signin.this, "Authentication Failed", Toast.LENGTH_SHORT).show();
+                    Log.d("authentication:", "authentication failed:" + e.getLocalizedMessage());
                     hideDialog();
                 }
             });

@@ -44,8 +44,6 @@
             android:id="@+id/pickup_input"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="5dp"
-            android:layout_marginLeft="5dp"
             android:layout_marginTop="5dp"
             android:hint="pickup location"
             android:inputType="textEmailAddress" />
@@ -86,10 +84,8 @@
             android:id="@+id/destination_input"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="5dp"
-            android:layout_marginLeft="5dp"
             android:layout_marginTop="5dp"
-            android:hint="pickup location"
+            android:hint="destination"
             android:inputType="textEmailAddress" />
 
         <ProgressBar
@@ -106,7 +102,7 @@
         android:id="@+id/textView5"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="15dp"
+        android:layout_marginTop="5dp"
         android:text="Ride estimate:"
         android:textSize="20sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -117,7 +113,7 @@
         android:id="@+id/ride_estimate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="5dp"
         android:text="N 0.0"
         android:textSize="20sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -128,7 +124,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="7dp"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/ride_estimate">

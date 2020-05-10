@@ -1,42 +1,42 @@
 {
   "project_info": {
-    "project_number": "270475944712",
-    "firebase_url": "https://zeetasupport.firebaseio.com",
-    "project_id": "zeetasupport",
-    "storage_bucket": "zeetasupport.appspot.com"
+    "project_number": "1021190358060",
+    "firebase_url": "https://zeeta-6b4c0.firebaseio.com",
+    "project_id": "zeeta-6b4c0",
+    "storage_bucket": "zeeta-6b4c0.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:270475944712:android:aed6be488430d5956d02bd",
+        "mobilesdk_app_id": "1:1021190358060:android:de36c7040549be80033d89",
         "android_client_info": {
           "package_name": "com.example.zeeta"
         }
       },
       "oauth_client": [
         {
-          "client_id": "270475944712-qibe9if5p25ns9qa9cjmtib8uah9c94m.apps.googleusercontent.com",
+          "client_id": "1021190358060-udvk2d9ireqfsirllen5r4r5g390u06t.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.zeeta",
-            "certificate_hash": "c4488925beaf2fc27b2926663ef94b29abff1cc5"
+            "certificate_hash": "28d935a869ebb8ca7e001b33052e239467b512cc"
           }
         },
         {
-          "client_id": "270475944712-uh2kqpjo077ensn3f7n3lqf9tt7iugpq.apps.googleusercontent.com",
+          "client_id": "1021190358060-742apnos2lb4g2hgb0493lh584rtvlfc.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyAUvaW9jxRVffc4YM-wgbqKdgWd89pkq4I"
+          "current_key": "AIzaSyAPRWeHWkIqRHt3dF_WSchdMMMGsVsyc5c"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "270475944712-uh2kqpjo077ensn3f7n3lqf9tt7iugpq.apps.googleusercontent.com",
+              "client_id": "1021190358060-742apnos2lb4g2hgb0493lh584rtvlfc.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
@@ -45,27 +45,35 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:270475944712:android:3752eaeede1e67026d02bd",
+        "mobilesdk_app_id": "1:1021190358060:android:f8d4007a14b35adb033d89",
         "android_client_info": {
           "package_name": "com.example.zeetasupport"
         }
       },
       "oauth_client": [
         {
-          "client_id": "270475944712-uh2kqpjo077ensn3f7n3lqf9tt7iugpq.apps.googleusercontent.com",
+          "client_id": "1021190358060-d721hb538677nks4oqv825g4fvg3uckn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.zeetasupport",
+            "certificate_hash": "28d935a869ebb8ca7e001b33052e239467b512cc"
+          }
+        },
+        {
+          "client_id": "1021190358060-742apnos2lb4g2hgb0493lh584rtvlfc.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyAUvaW9jxRVffc4YM-wgbqKdgWd89pkq4I"
+          "current_key": "AIzaSyAPRWeHWkIqRHt3dF_WSchdMMMGsVsyc5c"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "270475944712-uh2kqpjo077ensn3f7n3lqf9tt7iugpq.apps.googleusercontent.com",
+              "client_id": "1021190358060-742apnos2lb4g2hgb0493lh584rtvlfc.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

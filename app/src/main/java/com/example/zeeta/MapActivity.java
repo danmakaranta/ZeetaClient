@@ -21,6 +21,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Html;
@@ -58,6 +59,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.places.AutocompletePrediction;
+import com.google.android.gms.location.places.GeoDataClient;
 import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.PlaceBufferResponse;
 import com.google.android.gms.location.places.Places;
@@ -101,7 +103,6 @@ import com.google.maps.internal.PolylineEncoding;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.Distance;
-import com.google.android.gms.location.places.GeoDataClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -185,7 +186,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private GeoPoint pickupLocation;
     private GeoPoint destination;
     private ProgressBar destinationPBar;
-    private String locality = "StateNotFound";
+    private String locality = "GooglePlex";
     private @ServerTimestamp
     Timestamp timeStamp;
     private String serv = null;
@@ -500,14 +501,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         mMap = googleMap;
         mMap.setOnInfoWindowClickListener(this);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        // getDeviceLocation();
+        getDeviceLocation();
 
         if (mLocationPermissionGranted) {
             getDeviceLocation();
-          /*  mMap.setMyLocationEnabled(true);
-            mMap.getUiSettings().setMyLocationButtonEnabled(true);// remove the set location button from the screen*/
-            // init();
         }
         mMap.clear();
         mMap.setOnPolylineClickListener(this);
@@ -729,13 +726,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
 
         mDb = FirebaseFirestore.getInstance();
-        //for places API
-        //AIzaSyAUvaW9jxRVffc4YM-wgbqKdgWd89pkq4I
 
         markerPinned = false;
         if (mGeoApiContext == null) {
             mGeoApiContext = new GeoApiContext.Builder()
-                    .apiKey(getString(R.string.google_places_api_key))
+                    .apiKey(getString(R.string.google_maps_api_key))
                     .build();
         }
 
@@ -889,15 +884,25 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
             for (int i = 0; i <= selectedServices.size() - 1; i++) {
 
-
                 serv = "" + selectedServices.get(i);
                 requestedService = serv;
 
-                if (currentLocation != null) {
+                new CountDownTimer(1000, 3000) {
+                    @Override
+                    public void onTick(long millisUntilFinished) {
+                        getDeviceLocation();
+                    }
 
-                }
+                    @Override
+                    public void onFinish() {
+
+                    }
+
+                }.start();
                 DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
+                Log.d("ref", "refff" + ref.toString());
                 geoFire = new GeoFire(ref);
+
                 serviceFound = false;
                 RADIUS = 20;
                 getClientRequest(); //get the service, if found, pin it to map with custom marker
@@ -1092,8 +1097,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                         if (task.isSuccessful()) {
                             Location location = task.getResult();
                             currentLocation = location;
+                            locality = null;
                             locality = getLocality();
-
                             //move camera to current location on map
                             moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
 
@@ -1457,6 +1462,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
         try {
             if (serv.equalsIgnoreCase("Taxi") || serv.equalsIgnoreCase("Trycycle(Keke)")) {
+                Log.d("ID from db", "ID from db" + marker.getTag().toString());
                 getZeetaDriver(marker.getTag().toString());
             } else {
                 getServiceProviderDetails(marker.getTag().toString());
@@ -1646,8 +1652,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
         String state = "";
         Log.d("testinglocation", "location latitude" + location.getLatitude());
+        Log.d("testinglocation", "location longitude" + location.getLongitude());
         if (location.getLongitude() >= 7 && location.getLongitude() < 8) {// abuja's longitude
+            Log.d("testinglocation", "abuja longitude" + location.getLatitude());
             if (location.getLatitude() >= 9 && location.getLatitude() < 9.5) {// abuja's latitude
+                Log.d("testinglocation", "abuja latitude" + location.getLatitude());
                 state = state + "Abuja";
             }
         } else if (location.getLongitude() >= 3 && location.getLongitude() < 4) {// lagos longitude
@@ -1665,6 +1674,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         } else if (location.getLongitude() <= -122.0 && location.getLongitude() > -123.0) {// GooglePlex longitude
             Log.d("stage1", "passed longitude");
             if (location.getLatitude() >= 37.0 && location.getLatitude() < 38.0) {// GooglePlex latitude
+                Log.d("stage2", "passed latitude");
                 state = state + "GooglePlex";
             }
         } else {
