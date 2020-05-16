@@ -36,7 +36,7 @@ public class StartPage extends AppCompatActivity {
 
                 @Override
                 public void onFinish() {
-                    // do something end times 5s
+                    // do something end times 3s
                     Intent intent = new Intent(StartPage.this, Signin.class);
                     startActivity(intent);
                     overridePendingTransition(0, 0);
@@ -45,7 +45,7 @@ public class StartPage extends AppCompatActivity {
             }.start();
 
         } else {
-            Toast.makeText(this, "Please check that you are connected to the internet!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please check that you are connected to the internet!", Toast.LENGTH_LONG).show();
         }
 
     }
@@ -53,8 +53,14 @@ public class StartPage extends AppCompatActivity {
     @RequiresApi(api = Build.VERSION_CODES.M)
     public boolean isInternetConnection() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
         assert connectivityManager != null;
-        return Objects.requireNonNull(connectivityManager.getActiveNetworkInfo()).isConnectedOrConnecting();
+        if ((connectivityManager.getActiveNetworkInfo()) != null) {
+            return (Objects.requireNonNull(connectivityManager.getActiveNetworkInfo())).isConnected();
+        } else {
+            return false;
+        }
+
     }
 
 }

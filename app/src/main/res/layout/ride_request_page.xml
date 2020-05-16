@@ -2,7 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="280dp"
+    android:layout_width="300dp"
     android:layout_height="465dp">
 
     <TextView
@@ -30,7 +30,8 @@
 
     <LinearLayout
         android:id="@+id/pickup_layout"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_marginRight="3dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="5dp"
         android:layout_marginLeft="5dp"
@@ -42,7 +43,7 @@
 
         <AutoCompleteTextView
             android:id="@+id/pickup_input"
-            android:layout_width="wrap_content"
+            android:layout_width="255dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="5dp"
             android:hint="pickup location"
@@ -72,7 +73,8 @@
 
     <LinearLayout
         android:id="@+id/destination_layout"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_marginRight="3dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="5dp"
         android:layout_marginLeft="5dp"
@@ -82,7 +84,7 @@
 
         <AutoCompleteTextView
             android:id="@+id/destination_input"
-            android:layout_width="wrap_content"
+            android:layout_width="255dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="5dp"
             android:hint="destination"
@@ -124,9 +126,11 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="7dp"
+        android:layout_marginStart="5dp"
+        android:layout_marginLeft="5dp"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="5dp"
         app:layout_constraintTop_toBottomOf="@+id/ride_estimate">
 
         <Button
@@ -135,7 +139,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
             android:layout_marginLeft="20dp"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="5dp"
             android:background="@drawable/custom_button3"
             android:text="Request Ride"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -145,8 +149,8 @@
             android:id="@+id/cancel_ride_request"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="30dp"
-            android:layout_marginTop="10dp"
+            android:layout_marginLeft="35dp"
+            android:layout_marginTop="5dp"
             android:background="@drawable/custom_button3"
             android:layout_marginStart="30dp"
             android:text="@android:string/cancel" />

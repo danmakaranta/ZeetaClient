@@ -4,9 +4,11 @@ import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.LoaderManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.Loader;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -19,9 +21,9 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Html;
@@ -31,6 +33,7 @@ import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.AutoCompleteTextView;
@@ -108,10 +111,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -119,14 +124,19 @@ import androidx.fragment.app.FragmentActivity;
 import static com.example.zeeta.util.Constants.PERMISSIONS_REQUEST_ENABLE_GPS;
 
 
-public class MapActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, GoogleMap.OnInfoWindowClickListener, GoogleMap.OnPolylineClickListener, GoogleApiClient.OnConnectionFailedListener {
+public class MapActivity extends FragmentActivity implements LoaderManager.LoaderCallbacks<String>, OnMapReadyCallback, LocationListener, GoogleMap.OnInfoWindowClickListener, GoogleMap.OnPolylineClickListener, GoogleApiClient.OnConnectionFailedListener {
 
     private static final String TAG = "MapActivity";
     private static final int ERROR_DIALOG_REQUEST = 9001;
     private static final String FINE_LOCATION = Manifest.permission.ACCESS_FINE_LOCATION;
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final int LOCATION_PERMISSIONS_REQUEST_CODE = 1234;
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
     private static final float DEFAULT_ZOOM = 14f;
+    public static final int OPERATION_SEARCH_LOADER = 22;
+    public static final String OPERATION_URL_EXTRA = "price_estimate";
+    AutoCompleteTextView pickET;
+    AutoCompleteTextView destinationET;
     Location currentLocation;
     Intent serviceIntent;
     public LocationManager locationManager;
@@ -152,6 +162,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private ArrayList<WorkerLocation> mUserLocations = new ArrayList<>();
     private ArrayList<String> selectedServices;
     private GeoApiContext mGeoApiContext;
+    private GeoApiContext mDirectionApi;
     private Handler mHandler = new Handler();
     public Criteria criteria;
     private static final LatLngBounds BOUNDS_GREATER_SYDNEY = new LatLngBounds(
@@ -184,9 +195,19 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private String getServiceProviderName;
     private GeoPoint serviceProviderLocation;
     private GeoPoint pickupLocation;
+
     private GeoPoint destination;
     private ProgressBar destinationPBar;
-    private String locality = "GooglePlex";
+    // custom driverDialog
+    private Dialog driverDialog;
+    private TextView rideEst;
+    private LoaderManager loaderManager;
+    private int rideEstimateAmount;
+
+    private double priceEstimate = 0.0;
+    private boolean pickupFirstClick = false;
+    private boolean destinationFound = false;
+    private String locality = "";
     private @ServerTimestamp
     Timestamp timeStamp;
     private String serv = null;
@@ -196,6 +217,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     private AutoCompleteTextView mAutocompleteView;
     private TextView mPlaceDetailsText;
     private TextView mPlaceDetailsAttribution;
+    private String customerAddress = "";
+    private String customerPhoneNumber;
 
     //for adding a custom marker,
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId){
@@ -210,14 +233,16 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     private Bitmap my_image;
 
-    // reset all variables for service
-    @Override
-    public void onBackPressed() {
-        serviceFound = false;
-        selectedServices.clear();
-        serviceProviderAcceptanceStatus = false;
-        mMap.clear();
-        startActivity(new Intent(getApplicationContext(), Request.class));
+    public static String getLocalityName(Context context, double latitude, double longitude) throws IOException {
+        Geocoder geocoder = new Geocoder(context, Locale.getDefault());
+        List<Address> addresses = null;
+
+        addresses = geocoder.getFromLocation(latitude, longitude, 1);
+        if (addresses.size() > 0) {
+            Log.d("locality", "State of operation " + addresses.get(0).getLocality());
+        }
+        return addresses.get(0).getLocality();
+
     }
 
     /**
@@ -311,66 +336,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    public String getProfession(String id) {
-
-
-        DocumentReference proffession2 = null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            proffession2 = FirebaseFirestore.getInstance()
-                    .collection("Users")
-                    .document(id);
-        }
-
-
-        DocumentReference proffession = null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            proffession = FirebaseFirestore.getInstance()
-                    .collection("Users")
-                    .document(id);
-        }
-
-
-        proffession2.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-
-            @Override
-            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                if (task.isSuccessful()) {
-                    DocumentSnapshot doc = task.getResult();
-                    String jobType = (String) doc.get("profession");
-
-                    if (jobType == null) {
-                        Log.d(TAG, "No data found ");
-                    } else {
-                        staffOccupation = null;
-                        Log.d(TAG, "Profession: " + jobType);
-                        staffOccupation = jobType;
-                    }
-                }
-
-            }
-        });
-
-        /*proffession.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-
-            @Override
-            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                if (task.isSuccessful()) {
-                    DocumentSnapshot doc = task.getResult();
-                    String aiki = (String) doc.get("profession");
-                    if (aiki == null) {
-                        Log.d(TAG, "No data found ");
-                    } else {
-                        staffOccupation = null;
-                        Log.d(TAG, "Profession: " + aiki);
-                        staffOccupation = aiki;
-                    }
-                }
-            }
-
-        });*/
-        id = null;
-        return staffOccupation;
-    }
 
     /**
      * Listener that handles selections from suggestions from the AutoCompleteTextView that
@@ -408,42 +373,16 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         }
     };
 
-    private void calculateDirections(GeoPoint gp) {
-        Log.d(TAG, "calculateDirections: calculating directions.");
-
-        com.google.maps.model.LatLng destination = new com.google.maps.model.LatLng(
-                gp.getLatitude(),
-                gp.getLongitude()
-        );
-        Log.d(TAG, "calculateDirections: finished calculating directions.");
-        DirectionsApiRequest directions = new DirectionsApiRequest(mGeoApiContext);
-
-        directions.alternatives(true);
-        directions.origin(
-                new com.google.maps.model.LatLng(
-                        currentLocation.getLatitude(),
-                        currentLocation.getLongitude()
-                )
-        );
-
-        Log.d(TAG, "calculateDirections: destination: " + destination.toString());
-        directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
-            @Override
-            public void onResult(DirectionsResult result) {
-                Log.d(TAG, "calculateDirections: routes: " + result.routes[0].toString());
-                Log.d(TAG, "calculateDirections: duration: " + result.routes[0].legs[0].duration);
-                Log.d(TAG, "calculateDirections: distance: " + result.routes[0].legs[0].distance);
-                Log.d(TAG, "calculateDirections: geocodedWayPoints: " + result.geocodedWaypoints[0].toString());
-
-                Log.d(TAG, "onResult: successfully retrieved directions.");
-                addPolylinesToMap(result);
-            }
-
-            @Override
-            public void onFailure(Throwable e) {
-                Log.e(TAG, "calculateDirections: Failed to get directions: " + e.getMessage());
-            }
-        });
+    // reset all variables for service
+    @Override
+    public void onBackPressed() {
+        serviceFound = false;
+        if (selectedServices != null) {
+            selectedServices.clear();
+        }
+        serviceProviderAcceptanceStatus = false;
+        mMap.clear();
+        startActivity(new Intent(getApplicationContext(), Request.class));
     }
 
     private void addPolylinesToMap(final DirectionsResult result) {
@@ -494,21 +433,42 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        Log.d(TAG, "onMapReady: map is ready here");
-        //Toast.makeText(this, "Map is ready", Toast.LENGTH_SHORT).show();
-        mMap = googleMap;
-        mMap.setOnInfoWindowClickListener(this);
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        getDeviceLocation();
+    private void calculateDirections(GeoPoint gp) {
+        Log.d(TAG, "calculateDirections: calculating directions.");
 
-        if (mLocationPermissionGranted) {
-            getDeviceLocation();
-        }
-        mMap.clear();
-        mMap.setOnPolylineClickListener(this);
+        com.google.maps.model.LatLng destination = new com.google.maps.model.LatLng(
+                gp.getLatitude(),
+                gp.getLongitude()
+        );
+        Log.d(TAG, "calculateDirections: finished calculating directions.");
+        DirectionsApiRequest directions = new DirectionsApiRequest(mDirectionApi);
 
+        directions.alternatives(false);
+        directions.origin(
+                new com.google.maps.model.LatLng(
+                        currentLocation.getLatitude(),
+                        currentLocation.getLongitude()
+                )
+        );
+
+        Log.d(TAG, "calculateDirections: destination: " + destination.toString());
+        directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
+            @Override
+            public void onResult(DirectionsResult result) {
+                Log.d(TAG, "calculateDirections: routes: " + result.routes[0].toString());
+                Log.d(TAG, "calculateDirections: duration: " + result.routes[0].legs[0].duration);
+                Log.d(TAG, "calculateDirections: distance: " + result.routes[0].legs[0].distance);
+                Log.d(TAG, "calculateDirections: geocodedWayPoints: " + result.geocodedWaypoints[0].toString());
+
+                Log.d(TAG, "onResult: successfully retrieved directions.");
+                addPolylinesToMap(result);
+            }
+
+            @Override
+            public void onFailure(Throwable e) {
+                Log.e(TAG, "calculateDirections: Failed to get directions: " + e.getMessage());
+            }
+        });
     }
 
     private void getUserLocations(String id) {
@@ -586,19 +546,19 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return markerTracker;
     }
 
-
     @Override
-    protected void onResume() {
-        super.onResume();
+    public void onMapReady(GoogleMap googleMap) {
+        Log.d(TAG, "onMapReady: map is ready here");
+        //Toast.makeText(this, "Map is ready", Toast.LENGTH_SHORT).show();
+        mMap = googleMap;
+        mMap.setOnInfoWindowClickListener(this);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        //getDeviceLocation();
+        new getDeviceLocationAsync().execute();
 
-        if (checkMapServices()) {
-            if (mLocationPermissionGranted) {
+        mMap.clear();
+        mMap.setOnPolylineClickListener(this);
 
-            } else {
-                getLocationPermission();
-            }
-        }
-        executeService();
     }
 
     private boolean checkMapServices() {
@@ -653,16 +613,85 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return false;
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (checkMapServices()) {
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED) {
+                initMap();
+            }
+        }
+
+        if (checkMapServices()) {
+            if (mLocationPermissionGranted) {
+
+            } else {
+                getLocationPermission();
+            }
+        }
+
+    }
+
+    private int timeApart(GeoPoint customerL, GeoPoint servidePL) {
+        com.google.maps.model.LatLng servicePLocation = new com.google.maps.model.LatLng(
+                customerL.getLatitude(),
+                customerL.getLongitude()
+        );
+
+        if (mDirectionApi == null) {
+            mDirectionApi = new GeoApiContext.Builder()
+                    .apiKey(getString(R.string.google_directions_api_key))
+                    .build();
+        }
+
+        DirectionsApiRequest directions = new DirectionsApiRequest(mDirectionApi);
+
+        directions.alternatives(false);
+        directions.origin(
+                new com.google.maps.model.LatLng(
+                        servidePL.getLatitude(),
+                        servidePL.getLongitude()
+                )
+        );
+
+        final int[] time = {0};
+
+        directions.destination(servicePLocation).setCallback(new PendingResult.Callback<DirectionsResult>() {
+            @RequiresApi(api = Build.VERSION_CODES.O)
+            @Override
+            public void onResult(DirectionsResult result) {
+                if (result.routes.length > 0) {
+                    time[0] = result.routes[0].legs[0].arrivalTime.getMinute();
+                    Log.d(TAG, "calculateDirections: ETA: " + time[0]);
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable e) {
+                Log.e("CalculateDirectionExcp", "calculateDirections ETA: Failed to get directions: " + e.getMessage());
+            }
+        });
+        if (time[0] > 0) {
+            return time[0];
+        } else {
+            return 5;
+        }
+
+    }
+
     private long calculateDistance(GeoPoint pickupL, GeoPoint dest) {
+        Log.d("check", "check calculatedistance");
 
         com.google.maps.model.LatLng destination = new com.google.maps.model.LatLng(
                 dest.getLatitude(),
                 dest.getLongitude()
         );
 
-        DirectionsApiRequest directions = new DirectionsApiRequest(mGeoApiContext);
+        DirectionsApiRequest directions = new DirectionsApiRequest(mDirectionApi);
 
-        directions.alternatives(true);
+        directions.alternatives(false);
         directions.origin(
                 new com.google.maps.model.LatLng(
                         pickupL.getLatitude(),
@@ -672,33 +701,31 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
         final Distance[] distance = new Distance[1];
         final long[] dista = new long[1];
-        //distanceCovered = 0;
 
         directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
             @Override
             public void onResult(DirectionsResult result) {
-                distance[0] = result.routes[0].legs[0].distance;
+
                 if (result.routes[0].legs[0].distance.inMeters > 5) {
                     distanceCovered = result.routes[0].legs[0].distance.inMeters;
                 }
                 Log.d(TAG, "calculateDirections: duration: " + result.routes[0].legs[0].duration);
                 Log.d(TAG, "calculateDirections: distance: " + result.routes[0].legs[0].distance);
-                Log.d(TAG, "calculateDirections: distance: " + distanceCovered);
-                Log.d(TAG, "calculateDirections: geocodedWayPointz: " + result.geocodedWaypoints[0].toString());
+                Log.d(TAG, "calculateDirections: distanceCV:" + distanceCovered);
+                Log.d(TAG, "calculateDirections: geocodedWayPointzz: " + result.geocodedWaypoints[0].toString());
             }
 
             @Override
             public void onFailure(Throwable e) {
-                Log.e("CalculateDirectionExcp", "calculateDirections: Failed to get directions: " + e.getMessage());
+                Log.e("CalculateDirectionsETA", "calculateDistance: Failed to get distance: " + e.getMessage());
             }
         });
-        //Log.d(TAG, "calculateDirections: distance: outside " + distanceCovered);
-        if (distanceCovered <= 0) {
-            Log.d(TAG, "Recursive times");
-            return calculateDistance(pickupL, dest);
+        if (distanceCovered < 1) {
+            return 0;
         } else {
             return distanceCovered;
         }
+
 
     }
 
@@ -706,7 +733,9 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
-        getDeviceLocation();
+        checkLocationPermission();
+        new getDeviceLocationAsync().execute();
+        updateCustomerDetails();
         RADIUS = 20;
         serviceFound = false;
         keyIDs = new ArrayList();
@@ -717,13 +746,22 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         mGeoDataClient = Places.getGeoDataClient(this, null);
 
         tyingNum = 0;
+        driverDialog = new Dialog(MapActivity.this);
+        driverDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        driverDialog.setContentView(R.layout.ride_request_page);
+        driverDialog.setTitle("Send Request?");
+        rideEst = driverDialog.findViewById(R.id.ride_estimate);
+        loaderManager = getLoaderManager();
 
+        if (loaderManager.getLoader(1) != null) {
+
+            loaderManager.initLoader(1, null, MapActivity.this);
+        }
 
         setContentView(R.layout.activity_map);
         selectedServiceData = new ArrayList();
 
         serviceIntent = new Intent(MapActivity.this, LocationService.class);
-
 
         mDb = FirebaseFirestore.getInstance();
 
@@ -731,6 +769,12 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         if (mGeoApiContext == null) {
             mGeoApiContext = new GeoApiContext.Builder()
                     .apiKey(getString(R.string.google_maps_api_key))
+                    .build();
+        }
+
+        if (mDirectionApi == null) {
+            mDirectionApi = new GeoApiContext.Builder()
+                    .apiKey(getString(R.string.google_directions_api_key))
                     .build();
         }
 
@@ -764,11 +808,31 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             }
         });
 
-        executeService();
+        //executeService();
+    }
+
+    private void moveCamera(LatLng latlng, float zoom, String title) {
+
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoom));
+
+    }
+
+    private void resetSelectedMarker() {
+        if (mSelectedMarker != null) {
+            mSelectedMarker.setVisible(true);
+            mSelectedMarker = null;
+            removeTripMarkers();
+        }
+    }
+
+    private void removeTripMarkers() {
+        for (Marker marker : mTripMarkers) {
+            marker.remove();
+        }
     }
 
     private void getClientRequest() {
-        getDeviceLocation();
+        //getDeviceLocation();
 
         mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
             @Override
@@ -784,6 +848,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                     geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
 
+
                         @Override
                         public void onKeyEntered(String key, GeoLocation location) {
 
@@ -793,8 +858,16 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
                             } else {
                                 if (markerList.size() <= 0) {
+                                    String markerTitle;
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        markerTitle = requestedService + " " + timeApart(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(location.latitude, location.longitude)) + "minutes away";
 
-                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
+                                    } else {
+                                        markerTitle = requestedService + " ...minutes away!";
+                                    }
+
+                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(markerTitle));
+
                                     staffMarker.setTag(key);
                                     //choose icon type for transport or other service
                                     if (requestedService.equalsIgnoreCase("Taxi") || requestedService.equalsIgnoreCase("Trycycle(Keke)")) {
@@ -858,26 +931,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
-    private void moveCamera(LatLng latlng, float zoom, String title) {
-
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoom));
-
-    }
-
-    private void resetSelectedMarker(){
-        if(mSelectedMarker != null){
-            mSelectedMarker.setVisible(true);
-            mSelectedMarker = null;
-            removeTripMarkers();
-        }
-    }
-
-    private void removeTripMarkers(){
-        for(Marker marker: mTripMarkers){
-            marker.remove();
-        }
-    }
-
     private void executeService() {
         selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
         if (selectedServices != null && selectedServices.size() >= 1) {
@@ -887,20 +940,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 serv = "" + selectedServices.get(i);
                 requestedService = serv;
 
-                new CountDownTimer(1000, 3000) {
-                    @Override
-                    public void onTick(long millisUntilFinished) {
-                        getDeviceLocation();
-                    }
-
-                    @Override
-                    public void onFinish() {
-
-                    }
-
-                }.start();
                 DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
-                Log.d("ref", "refff" + ref.toString());
+                Log.d("ref", "" + "refff" + ref.toString());
                 geoFire = new GeoFire(ref);
 
                 serviceFound = false;
@@ -919,6 +960,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                 mLocationPermissionGranted = true;
 
                 initMap();// if the location permission is granted
+                //getDeviceLocation();
             } else {
                 Log.d(TAG, "getLocationPermission: Location permission failed");
                 ActivityCompat.requestPermissions(this, permissions, LOCATION_PERMISSIONS_REQUEST_CODE);
@@ -929,30 +971,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             ActivityCompat.requestPermissions(this, permissions, LOCATION_PERMISSIONS_REQUEST_CODE);
         }
 
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        mLocationPermissionGranted = false;
-
-        switch (requestCode) {
-            case LOCATION_PERMISSIONS_REQUEST_CODE: {
-                if (grantResults.length > 0) {// that means some kind of permission was granted
-                    for (int i = 0; i < grantResults.length; i++) {
-                        if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                            mLocationPermissionGranted = false;
-                            Log.d(TAG, "onRequestPermission: permission request failed");
-                            return;
-                        }
-                    }
-                    Log.d(TAG, "onRequestPermission: permission granted");
-                    mLocationPermissionGranted = true;
-                    //initialize our map
-                    initMap();
-
-                }
-            }
-        }
     }
 
     @Override
@@ -1053,7 +1071,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
             @Override
             public void onResult(DirectionsResult result) {
-
                 Log.d(TAG, "onResult: successfully retrieved directions.");
                 addPolylinesToMap(result);
             }
@@ -1064,6 +1081,30 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
             }
         });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        mLocationPermissionGranted = false;
+
+        switch (requestCode) {
+            case LOCATION_PERMISSIONS_REQUEST_CODE: {
+                if (grantResults.length > 0) {// that means some kind of permission was granted
+                    for (int i = 0; i < grantResults.length; i++) {
+                        if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                            mLocationPermissionGranted = false;
+                            Log.d(TAG, "onRequestPermission: permission request failed");
+                            return;
+                        }
+                    }
+                    Log.d(TAG, "onRequestPermission: permission granted");
+                    mLocationPermissionGranted = true;
+                    //initialize our map
+                    // getDeviceLocation();
+                    initMap();
+                }
+            }
+        }
     }
 
     private void getDeviceLocation() {
@@ -1082,9 +1123,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
             return;
         }
 
-
         Log.d(TAG, "getDeviceLocation: getting the device current location");
-
 
         mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
@@ -1097,8 +1136,17 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
                         if (task.isSuccessful()) {
                             Location location = task.getResult();
                             currentLocation = location;
-                            locality = null;
-                            locality = getLocality();
+                            try {
+                                locality = null;
+                                locality = getLocality();
+                                Log.d("Locality", "State" + getLocalityName(MapActivity.this, location.getLatitude(), location.getLongitude()));
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            customerAddress = getCompleteAddressString(location.getLatitude(), location.getLongitude());
+
+                            Log.d("address", "customer address" + customerAddress);
+
                             //move camera to current location on map
                             moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
 
@@ -1165,32 +1213,28 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    private void geolocate(String searchString, String location) {
-
-        // create a geocoder object
-        Geocoder geocoder = new Geocoder(MapActivity.this);
-        List<Address> list = new ArrayList();
+    private String getCompleteAddressString(double LATITUDE, double LONGITUDE) {
+        String strAdd = "";
+        Geocoder geocoder = new Geocoder(this, Locale.getDefault());
         try {
-            list = geocoder.getFromLocationName(searchString, 5);
+            List<Address> addresses = geocoder.getFromLocation(LATITUDE, LONGITUDE, 1);
+            if (addresses != null) {
+                Address returnedAddress = addresses.get(0);
+                StringBuilder strReturnedAddress = new StringBuilder("");
+                for (int i = 0; i <= returnedAddress.getMaxAddressLineIndex(); i++) {
+                    strReturnedAddress.append(returnedAddress.getAddressLine(i)).append("\n");
+                }
+                strAdd = strReturnedAddress.toString();
 
-        } catch (IOException e) {
-            Log.d(TAG, "geolocate: input was wrong");
-        }
-
-        if (list.size() > 0) {
-            Address address = list.get(0);
-            if (location.equalsIgnoreCase("pickup")) {
-                pickupLocation = new GeoPoint(address.getLatitude(), address.getLongitude());
-                Log.d(TAG, "geolocate: input was right: " + pickupLocation);
-                pickUpP.setVisibility(View.INVISIBLE);
+                Log.w("My Current location", strReturnedAddress.toString());
             } else {
-                destination = new GeoPoint(address.getLatitude(), address.getLongitude());
-                Log.d(TAG, "geolocate: input was right: " + destination);
-                destinationPBar.setVisibility(View.INVISIBLE);
+                Log.w("My Current loction", "No Address returned!");
             }
-
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.w("My Current loction", "Cannt get Address!");
         }
-
+        return strAdd;
     }
 
     public boolean stillOnline(String id) {
@@ -1214,54 +1258,60 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         return true;
     }
 
-    private void sendRideRequest(String id, GeoPoint pickup, GeoPoint destination, Long amount) {
-        final int[] counter = {0};
-        timeStamp = Timestamp.now();
-        DocumentReference clientRequest = FirebaseFirestore.getInstance()
-                .collection("Users")
-                .document(id).collection("RideData").document(Objects.requireNonNull("ongoing"));
+    private void geolocate(String input) {
 
-        JourneyInfo journeyInfo = new JourneyInfo(pickup, destination, FirebaseAuth.getInstance().getUid(), "+3920329", (long) 0, timeStamp, (long) amount, false, false, false);
+        String searchString;
 
-        clientRequest.set(journeyInfo).addOnCompleteListener(new OnCompleteListener<Void>() {
+        if (input.equalsIgnoreCase("pickup")) {
+            searchString = null;
+            searchString = pickET.getText().toString();
+            Log.d("input", "input is pickup:");
+        } else {
+            searchString = null;
+            searchString = destinationET.getText().toString();
+            Log.d("input", "input is destination:");
+        }
+        // create a geocoder object
+        Geocoder geocoder = new Geocoder(MapActivity.this);
+        List<Address> list = new ArrayList();
+        try {
+
+            list = geocoder.getFromLocationName(searchString, 1);
+
+        } catch (IOException e) {
+            Log.d(TAG, "geolocate: input was wrong " + input);
+        }
+
+        if (list.size() > 0) {
+            Address address = list.get(0);
+            if (input.equalsIgnoreCase("pickup")) {
+                pickUpP.setVisibility(View.INVISIBLE);
+                hideSoftKeyboard();
+                pickupLocation = new GeoPoint(address.getLatitude(), address.getLongitude());
+                pickupFirstClick = false;
+                Log.d(TAG, "geolocate: input was right:Pickup " + searchString + pickupLocation);
+
+            } else {
+                destinationFound = true;
+                destinationPBar.setVisibility(View.INVISIBLE);
+                hideSoftKeyboard();
+                destination = new GeoPoint(address.getLatitude(), address.getLongitude());
+                Log.d(TAG, "geolocate: input was right:destination " + searchString + destination);
+            }
+        }
+
+    }
+
+    public void updateCustomerDetails() {
+        DocumentReference customerDetails = FirebaseFirestore.getInstance()
+                .collection("Customers")
+                .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid()));
+        customerDetails.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
             @Override
-            public void onComplete(@NonNull Task<Void> task) {
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
-                    //Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for driver", Toast.LENGTH_LONG).show();
-                    clientRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
-                        @Override
-                        public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                            counter[0] = counter[0] + 1;
-                            if (e != null) {
-                                Log.w(TAG, "Listen failed.", e);
-                                return;
-                            }
-
-                            if (documentSnapshot != null && documentSnapshot.exists()) {
-                                Log.d(TAG, "Current data: " + documentSnapshot.getData());
-                                Boolean accepted = documentSnapshot.getBoolean("accepted");
-                                if (accepted) {
-
-                                    Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
-                                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && !accepted) {
-
-                                    if (counter[0] > 1) {
-                                        //clear your request since it has been declined
-                                        clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                            @Override
-                                            public void onComplete(@NonNull Task<Void> task) {
-                                                Log.w(TAG, "Ride Request declined, clear request data.");
-                                            }
-                                        });
-                                        Toast.makeText(MapActivity.this, "Your request have been declined, please choose another Vehicle", Toast.LENGTH_LONG).show();
-
-                                    }
-
-                                }
-
-                            }
-                        }
-                    });
+                    DocumentSnapshot doc = task.getResult();
+                    customerPhoneNumber = doc.getString("phoneNumber");
                 }
             }
         });
@@ -1331,17 +1381,71 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         });
     }
 
-    private void initMap() {// for initializing the map
-        Log.d(TAG, "initMap: initializing map");
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(MapActivity.this);
-       /* mGoogleApiClient = new GoogleApiClient
-                .Builder(this)
-                .addApi(Places.GEO_DATA_API)
-                .addApi(Places.PLACE_DETECTION_API)
-                .enableAutoManage(this, this)
-                .build();
-*/
+    private void sendRideRequest(String id, GeoPoint pickup, GeoPoint destination, Long amount) {
+        final int[] counter = {0};
+        timeStamp = Timestamp.now();
+        DocumentReference clientRequest = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
+        DocumentReference customerRequest = FirebaseFirestore.getInstance()
+                .collection("Customers")
+                .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
+
+        JourneyInfo journeyInfo = new JourneyInfo(pickup, destination, FirebaseAuth.getInstance().getUid(), customerPhoneNumber, (long) 0, timeStamp, (long) amount, null, false, false);
+
+        clientRequest.set(journeyInfo).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    driverDialog.dismiss();
+                    Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for driver", Toast.LENGTH_LONG).show();
+                    clientRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+                        @Override
+                        public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                            counter[0] = counter[0] + 1;
+                            if (e != null) {
+                                Log.w(TAG, "Listen failed.", e);
+                                return;
+                            }
+
+                            if (documentSnapshot != null && documentSnapshot.exists()) {
+                                Log.d(TAG, "Current data: " + documentSnapshot.getData());
+                                Boolean accepted = documentSnapshot.getBoolean("accepted");
+                                if (accepted != null) {
+                                    if (accepted) {
+
+                                        customerRequest.set(journeyInfo).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                            @Override
+                                            public void onComplete(@NonNull Task<Void> task) {
+                                                Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
+                                            }
+                                        });
+
+                                    } else if (!accepted) {
+
+                                        if (counter[0] > 1) {
+                                            //clear your request since it has been declined
+                                            clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                @Override
+                                                public void onComplete(@NonNull Task<Void> task) {
+                                                    Log.w(TAG, "Ride Request declined, clear request data.");
+                                                }
+                                            });
+                                            Toast.makeText(MapActivity.this, "Your request have been declined, please choose another Vehicle", Toast.LENGTH_LONG).show();
+
+                                        }
+
+                                    }
+
+                                }
+
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
     }
 
 
@@ -1457,20 +1561,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    @Override
-    public void onInfoWindowClick(Marker marker) {
-
-        try {
-            if (serv.equalsIgnoreCase("Taxi") || serv.equalsIgnoreCase("Trycycle(Keke)")) {
-                Log.d("ID from db", "ID from db" + marker.getTag().toString());
-                getZeetaDriver(marker.getTag().toString());
-            } else {
-                getServiceProviderDetails(marker.getTag().toString());
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void initMap() {// for initializing the map
+        Log.d(TAG, "initMap: initializing map");
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        mapFragment.getMapAsync(MapActivity.this);
+        new getDeviceLocationAsync().execute();
 
     }
 
@@ -1494,119 +1589,22 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
 
     }
 
-    private void getZeetaDriver(String id) {
-        DocumentReference driverDetails = null;
+    @Override
+    public void onInfoWindowClick(Marker marker) {
 
-        // custom dialog
-        final Dialog dialog = new Dialog(MapActivity.this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(R.layout.ride_request_page);
-        dialog.setTitle("Send Request?");
-        pickUpP = dialog.findViewById(R.id.pickupProgressBar);
-        destinationPBar = dialog.findViewById(R.id.destinationProgressBar);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            driverDetails = FirebaseFirestore.getInstance()
-                    .collection("Users")
-                    .document(id);
-        }
+        try {
+            if (serv.equalsIgnoreCase("Taxi") || serv.equalsIgnoreCase("Trycycle(Keke)")) {
+                GeoPoint hmedix = new GeoPoint(9.1022, 7.4058);
+                GeoPoint wuse = new GeoPoint(9.0747, 7.4760);
 
-
-        driverDetails.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-            @Override
-            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-
-                if (task.isSuccessful()) {
-                    serviceProviderPhone = "";
-                    serviceProviderName = "";
-                    pickupLocation = null;
-                    destination = null;
-                    serviceProviderLocation = null;
-                    serviceRendered = "";
-                    AutoCompleteTextView pickET = dialog.findViewById(R.id.pickup_input);
-                    AutoCompleteTextView destinationET = dialog.findViewById(R.id.destination_input);
-
-                    pickET.setAdapter(new PlaceAutoSuggestionAdapter(MapActivity.this, android.R.layout.simple_list_item_1));
-                    destinationET.setAdapter(new PlaceAutoSuggestionAdapter(MapActivity.this, android.R.layout.simple_list_item_1));
-                   /* //trying out another adapter
-                    // Retrieve the AutoCompleteTextView that will display Place suggestions.
-                    mAutocompleteView = dialog.findViewById(R.id.pickup_input);
-
-                    // Register a listener that receives callbacks when a suggestion has been selected
-                    mAutocompleteView.setOnItemClickListener(mAutocompleteClickListener);
-                    // Retrieve the TextViews that will display details and attributions of the selected place.
-                    mPlaceDetailsText = (TextView) dialog.findViewById(R.id.place_details);
-                    mPlaceDetailsAttribution = (TextView) dialog.findViewById(R.id.place_attribution);
-                    // Set up the adapter that will retrieve suggestions from the Places Geo Data Client.
-                    mAdapter = new PlaceAutocompleteAdapter(dialog.getContext(), mGeoDataClient, BOUNDS_GREATER_SYDNEY, null);
-                    mAutocompleteView.setAdapter(mAdapter);*/
-
-                    TextView rideEst = dialog.findViewById(R.id.ride_estimate);
-
-                    //fetch driver details
-                    DocumentSnapshot doc = task.getResult();
-                    String vehicleType = (String) doc.get("vehicleType");
-                    String number = (String) doc.get("phoneNumber");
-                    String name = (String) doc.get("name");
-                    String rating = (String) doc.get("rating");
-                    String vehicleNumber = (String) doc.get("vehicleNumber");
-
-                    //assign variable for update
-                    serviceRendered = serv;
-                    serviceProviderPhone = number;
-                    serviceProviderName = name;
-
-                    // hide all the progress bars until when needed
-                    pickUpP.setVisibility(View.INVISIBLE);
-                    destinationPBar.setVisibility(View.INVISIBLE);
-
-                    TextView textName = (TextView) dialog.findViewById(R.id.driver_name);
-                    textName.setText("" + serviceProviderName);
-                    TextView textVehicleType = (TextView) dialog.findViewById(R.id.vehicle_type);
-                    textVehicleType.setText("" + vehicleType);
-                    TextView textVehicleNumber = (TextView) dialog.findViewById(R.id.vehicle_licence);
-                    textVehicleNumber.setText("" + vehicleNumber);
-
-                    pickET.setOnKeyListener(new View.OnKeyListener() {
-                        @Override
-                        public boolean onKey(View v, int keyCode, KeyEvent event) {
-
-                            pickUpP.setVisibility(View.VISIBLE);
-                            geolocate(pickET.getText().toString(), "pickup");
-                            return false;
-                        }
-                    });
-
-
-                    destinationET.setOnKeyListener(new View.OnKeyListener() {
-                        @Override
-                        public boolean onKey(View v, int keyCode, KeyEvent event) {
-
-                            destinationPBar.setVisibility(View.VISIBLE);
-                            geolocate(destinationET.getText().toString(), "destination");
-                            if (destination != null && pickupLocation != null) {
-                                Log.d("distance", "Distance to be covered: " + calculateDistance(pickupLocation, destination));
-                                long estimate = (calculateDistance(pickupLocation, destination)) / 1000 * 100;
-                                String estm = "N" + estimate;
-                                rideEst.setText(estm);
-                            }
-                            return false;
-                        }
-                    });
-
-                }
-                dialog.show();
-
-                Button cancel = dialog.findViewById(R.id.cancel_ride_request);
-                cancel.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        dialog.dismiss();
-                    }
-                });
+                getZeetaDriver(marker.getTag().toString());
+            } else {
+                getServiceProviderDetails(marker.getTag().toString());
             }
 
-        });
-
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -1682,6 +1680,296 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback,
         }
 
         return state;
+    }
+
+    private void getZeetaDriver(String id) {
+        DocumentReference driverDetails = null;
+
+        pickUpP = driverDialog.findViewById(R.id.pickupProgressBar);
+        destinationPBar = driverDialog.findViewById(R.id.destinationProgressBar);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            driverDetails = FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(id);
+        }
+
+
+        driverDetails.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+
+                if (task.isSuccessful()) {
+                    serviceProviderPhone = "";
+                    serviceProviderName = "";
+                    pickupLocation = null;
+                    destination = null;
+                    serviceProviderLocation = null;
+                    serviceRendered = "";
+                    destinationET = driverDialog.findViewById(R.id.destination_input);
+                    pickET = driverDialog.findViewById(R.id.pickup_input);
+                    rideEst = driverDialog.findViewById(R.id.ride_estimate);
+
+                    pickET.setAdapter(new PlaceAutoSuggestionAdapter(MapActivity.this, android.R.layout.simple_list_item_1));
+                    destinationET.setAdapter(new PlaceAutoSuggestionAdapter(MapActivity.this, android.R.layout.simple_list_item_1));
+
+
+                    //fetch driver details
+                    DocumentSnapshot doc = task.getResult();
+                    String vehicleType = (String) doc.get("vehicleType");
+                    String number = (String) doc.get("phoneNumber");
+                    String name = (String) doc.get("name");
+                    String rating = (String) doc.get("rating");
+                    String vehicleNumber = (String) doc.get("vehicleNumber");
+
+                    //assign variable for update
+                    serviceRendered = serv;
+                    serviceProviderPhone = number;
+                    serviceProviderName = name;
+
+                    // hide all the progress bars until when needed
+                    pickUpP.setVisibility(View.INVISIBLE);
+                    destinationPBar.setVisibility(View.INVISIBLE);
+
+                    TextView textName = (TextView) driverDialog.findViewById(R.id.driver_name);
+                    textName.setText("" + serviceProviderName);
+                    TextView textVehicleType = (TextView) driverDialog.findViewById(R.id.vehicle_type);
+                    textVehicleType.setText("" + vehicleType);
+                    TextView textVehicleNumber = (TextView) driverDialog.findViewById(R.id.vehicle_licence);
+                    textVehicleNumber.setText("" + vehicleNumber);
+                    pickET.setText(customerAddress);
+
+                    pickupLocation = new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude());
+
+                    pickET.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+
+                            if (!pickupFirstClick) {
+                                pickET.setText("");
+                                pickupFirstClick = true;
+                            }
+
+                            pickUpP.setVisibility(View.VISIBLE);
+                            geolocate("pickup");
+                        }
+                    });
+
+                    destinationET.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                        @Override
+                        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                            geolocate("destination");
+                            if (destination != null && pickupLocation != null) {
+                                hideSoftKeyboard();
+                                startRideEstimation();
+                            }
+                            Log.d("parent", "item selected is" + parent.getItemAtPosition(position).toString());
+                        }
+                    });
+
+
+                    destinationET.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            destinationPBar.setVisibility(View.VISIBLE);
+                            pickupFirstClick = false;
+                            geolocate("destination");
+                            if (destination != null && pickupLocation != null) {
+                                hideSoftKeyboard();
+                                startRideEstimation();
+
+                            }
+                        }
+                    });
+                }
+                driverDialog.show();
+
+                Button cancel = driverDialog.findViewById(R.id.cancel_ride_request);
+                cancel.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        clearLoaderManager();
+                        destinationET.setText("");
+                        rideEst.setText("");
+                        driverDialog.dismiss();
+                    }
+                });
+
+                Button sendRideBtn = driverDialog.findViewById(R.id.ride_request_button);
+                sendRideBtn.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        sendRideRequest(id, pickupLocation, destination, (long) rideEstimateAmount);
+
+                    }
+                });
+
+            }
+
+        });
+
+
+    }
+
+    @Override
+    public Loader<String> onCreateLoader(int id, Bundle args) {
+        // return new rideEstimationLoader(this);
+        return new RideEstimationLoader(this, pickupLocation, destination);
+    }
+
+    @Override
+    public void onLoadFinished(Loader<String> loader, String data) {
+        hideSoftKeyboard();
+        rideEst.setText(data);
+        String temp = data;
+        rideEstimateAmount = getPriceInteger(data);
+
+    }
+
+    @Override
+    public void onLoaderReset(Loader<String> loader) {
+
+    }
+
+    public void startRideEstimation() {
+        loaderManager.initLoader(1, null, this);
+    }
+
+    public void clearLoaderManager() {
+        loaderManager.destroyLoader(1);
+    }
+
+    private void hideSoftKeyboard() {
+        MapActivity.this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+    }
+
+    public boolean checkLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)) {
+
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+                new AlertDialog.Builder(this)
+                        .setTitle("Request For Location Permission")
+                        .setMessage("This app is requesting for a Location permission. Allow?")
+                        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                //Prompt the user once explanation has been shown
+                                ActivityCompat.requestPermissions(MapActivity.this,
+                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                        MY_PERMISSIONS_REQUEST_LOCATION);
+                            }
+                        })
+                        .create()
+                        .show();
+
+
+            } else {
+                // No explanation needed, we can request the permission.
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_LOCATION);
+            }
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    public int getPriceInteger(String s) {
+        int val1;
+        String whole = s;
+        StringBuilder sb = new StringBuilder("");
+        for (int i = 1; i < s.length(); i++) {
+            sb.append(s.charAt(i));
+        }
+        Log.d("----", "New String: " + sb.toString());
+        val1 = Integer.parseInt(sb.toString());
+
+        return val1;
+    }
+
+    public class getDeviceLocationAsync extends AsyncTask<String, String, String> {
+
+
+        public double lati = 0.0;
+        public double longi = 0.0;
+
+        public LocationManager mLocationManager;
+
+        @Override
+        protected void onPreExecute() {
+            mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            checkLocationPermission();
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            //move camera to current location on map
+            if (currentLocation != null) {
+                moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
+                executeService();
+            }
+
+        }
+
+        @Override
+        protected void onProgressUpdate(String... values) {
+
+        }
+
+        @Override
+        protected String doInBackground(String... strings) {
+            locationManager = (LocationManager) MapActivity.this.getSystemService(Context.LOCATION_SERVICE);
+            criteria = new Criteria();
+            bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
+
+            Log.d(TAG, "getDeviceLocation: getting the device current location");
+
+            mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MapActivity.this);
+
+            try {
+                if (mLocationPermissionGranted) {// check first to see if the permission is granted
+                    mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
+                    mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
+                        @Override
+                        public void onComplete(@NonNull Task<android.location.Location> task) {
+                            if (task.isSuccessful()) {
+                                Location location = task.getResult();
+                                currentLocation = location;
+                                try {
+                                    locality = null;
+                                    //locality = getLocality();
+                                    locality = getLocalityName(MapActivity.this, location.getLatitude(), location.getLongitude());
+
+                                    Log.d("Locality", "StateOfExcecution " + getLocalityName(MapActivity.this, location.getLatitude(), location.getLongitude()));
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                customerAddress = getCompleteAddressString(location.getLatitude(), location.getLongitude());
+
+                                Log.d("address", "customer address" + customerAddress);
+
+                                //move camera to current location on map
+                                moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
+
+                            }
+                        }
+
+                    });
+                }
+            } catch (SecurityException e) {
+                Log.d(TAG, "getDeviceLocation: SecurityException:" + e.getMessage());
+            }
+
+            return null;
+        }
     }
 
 
