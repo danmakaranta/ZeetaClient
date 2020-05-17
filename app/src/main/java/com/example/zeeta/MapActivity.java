@@ -1,6 +1,7 @@
 package com.example.zeeta;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -33,8 +34,8 @@ import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
-import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
@@ -548,12 +549,13 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        Log.d(TAG, "onMapReady: map is ready here");
-        //Toast.makeText(this, "Map is ready", Toast.LENGTH_SHORT).show();
+
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+        googleMap.getUiSettings().setZoomControlsEnabled(true);
         mMap = googleMap;
         mMap.setOnInfoWindowClickListener(this);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        //getDeviceLocation();
+
         new getDeviceLocationAsync().execute();
 
         mMap.clear();
@@ -832,7 +834,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     private void getClientRequest() {
-        //getDeviceLocation();
+
 
         mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
             @Override
@@ -877,6 +879,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                     }
                                     moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                     markerList.add(staffMarker);
+                                    staffMarker.showInfoWindow();
                                 } else {
                                     if (markerContains(key)) {
 
@@ -890,6 +893,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         }
                                         moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                         markerList.add(staffMarker);
+                                        staffMarker.showInfoWindow();
                                     }
                                 }
                             }
@@ -1286,7 +1290,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             Address address = list.get(0);
             if (input.equalsIgnoreCase("pickup")) {
                 pickUpP.setVisibility(View.INVISIBLE);
-                hideSoftKeyboard();
+
                 pickupLocation = new GeoPoint(address.getLatitude(), address.getLongitude());
                 pickupFirstClick = false;
                 Log.d(TAG, "geolocate: input was right:Pickup " + searchString + pickupLocation);
@@ -1294,7 +1298,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             } else {
                 destinationFound = true;
                 destinationPBar.setVisibility(View.INVISIBLE);
-                hideSoftKeyboard();
                 destination = new GeoPoint(address.getLatitude(), address.getLongitude());
                 Log.d(TAG, "geolocate: input was right:destination " + searchString + destination);
             }
@@ -1391,7 +1394,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .collection("Customers")
                 .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
 
-        JourneyInfo journeyInfo = new JourneyInfo(pickup, destination, FirebaseAuth.getInstance().getUid(), customerPhoneNumber, (long) 0, timeStamp, (long) amount, null, false, false);
+        JourneyInfo journeyInfo = new JourneyInfo(pickup, destination, FirebaseAuth.getInstance().getUid(), customerPhoneNumber, (long) 0, timeStamp, (long) amount, "Awaiting", false, false);
 
         clientRequest.set(journeyInfo).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
@@ -1410,9 +1413,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
                             if (documentSnapshot != null && documentSnapshot.exists()) {
                                 Log.d(TAG, "Current data: " + documentSnapshot.getData());
-                                Boolean accepted = documentSnapshot.getBoolean("accepted");
+                                String accepted = documentSnapshot.getString("accepted");
                                 if (accepted != null) {
-                                    if (accepted) {
+                                    if (accepted.equalsIgnoreCase("Accepted")) {
 
                                         customerRequest.set(journeyInfo).addOnCompleteListener(new OnCompleteListener<Void>() {
                                             @Override
@@ -1421,7 +1424,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                             }
                                         });
 
-                                    } else if (!accepted) {
+                                    } else if (accepted.equalsIgnoreCase("Declined")) {
 
                                         if (counter[0] > 1) {
                                             //clear your request since it has been declined
@@ -1759,13 +1762,21 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                             geolocate("destination");
                             if (destination != null && pickupLocation != null) {
-                                hideSoftKeyboard();
+                                hideSoftKeyboard(view);
                                 startRideEstimation();
                             }
                             Log.d("parent", "item selected is" + parent.getItemAtPosition(position).toString());
                         }
                     });
 
+                    destinationET.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                        @Override
+                        public void onFocusChange(View v, boolean hasFocus) {
+                            if (!hasFocus) {
+                                hideSoftKeyboard(v);
+                            }
+                        }
+                    });
 
                     destinationET.setOnClickListener(new View.OnClickListener() {
                         @Override
@@ -1774,7 +1785,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                             pickupFirstClick = false;
                             geolocate("destination");
                             if (destination != null && pickupLocation != null) {
-                                hideSoftKeyboard();
+                                hideSoftKeyboard(v);
                                 startRideEstimation();
 
                             }
@@ -1818,7 +1829,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     @Override
     public void onLoadFinished(Loader<String> loader, String data) {
-        hideSoftKeyboard();
         rideEst.setText(data);
         String temp = data;
         rideEstimateAmount = getPriceInteger(data);
@@ -1838,9 +1848,20 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         loaderManager.destroyLoader(1);
     }
 
-    private void hideSoftKeyboard() {
-        MapActivity.this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+    private void hideSoftKeyboard(View v) {
+        //MapActivity.this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
+        inputMethodManager.hideSoftInputFromWindow(v.getWindowToken(), 0);
+
     }
+
+    /*public static void hideSoftKeyboard(Activity activity) {
+        InputMethodManager inputMethodManager =
+                (InputMethodManager) activity.getSystemService(
+                        Activity.INPUT_METHOD_SERVICE);
+        inputMethodManager.hideSoftInputFromWindow(
+                activity.getCurrentFocus().getWindowToken(), 0);
+    }*/
 
     public boolean checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this,

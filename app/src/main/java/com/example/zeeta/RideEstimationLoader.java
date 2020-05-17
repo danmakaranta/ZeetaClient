@@ -43,15 +43,15 @@ public class RideEstimationLoader extends AsyncTaskLoader<String> {
         if (dist <= 10) {
             price = 100;
         } else if (dist <= 20) {
-            price = 85;
-        } else if (dist <= 30) {
-            price = 70;
-        } else if (dist <= 40) {
-            price = 65;
-        } else if (dist <= 50) {
             price = 60;
-        } else {
+        } else if (dist <= 30) {
+            price = 55;
+        } else if (dist <= 40) {
+            price = 60;
+        } else if (dist <= 50) {
             price = 75;
+        } else {
+            price = 90;
         }
         return price;
     }
