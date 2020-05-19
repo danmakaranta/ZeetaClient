@@ -5,7 +5,6 @@ import android.graphics.Bitmap;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
-import com.example.zeeta.models.ClusterMarker;
 import com.example.zeeta.R;
 import com.example.zeeta.models.ClusterMarker;
 import com.google.android.gms.maps.GoogleMap;
@@ -37,8 +36,8 @@ public class MyClusterManagerRenderer extends DefaultClusterRenderer<ClusterMark
         imageView.setPadding(padding, padding, padding, padding);
         iconGenerator.setContentView(imageView);
 
-
     }
+
 
     @Override
     protected boolean shouldRenderAsCluster(Cluster<ClusterMarker> cluster) {

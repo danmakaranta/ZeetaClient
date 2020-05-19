@@ -220,6 +220,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private TextView mPlaceDetailsAttribution;
     private String customerAddress = "";
     private String customerPhoneNumber;
+    private Runnable mRunnable;
+    private boolean callbackPresent = false;
+    private long LOCATION_UPDATE_INTERVAL = 6000;
 
     //for adding a custom marker,
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId){
@@ -557,7 +560,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         new getDeviceLocationAsync().execute();
-
         mMap.clear();
         mMap.setOnPolylineClickListener(this);
 
@@ -618,6 +620,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     @Override
     protected void onResume() {
         super.onResume();
+        updateMarkersRunnable();
+
         if (checkMapServices()) {
             if (ContextCompat.checkSelfPermission(this,
                     Manifest.permission.ACCESS_FINE_LOCATION)
@@ -879,7 +883,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                     }
                                     moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                     markerList.add(staffMarker);
-                                    staffMarker.showInfoWindow();
+                                    //staffMarker.showInfoWindow();
                                 } else {
                                     if (markerContains(key)) {
 
@@ -893,7 +897,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         }
                                         moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                         markerList.add(staffMarker);
-                                        staffMarker.showInfoWindow();
+                                        //staffMarker.showInfoWindow();
                                     }
                                 }
                             }
@@ -1045,7 +1049,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
                 mTripMarkers.add(marker);
 
-                marker.showInfoWindow();
+                //marker.showInfoWindow();
             }
             else{
                 polylineData.getPolyline().setColor(R.color.darkGrey);
@@ -1916,6 +1920,55 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         return val1;
     }
 
+    private void updateMarkers() {
+        Log.d("update marker", "new Location: started");
+        DocumentReference locationRef;
+        if (markerList != null && markerList.size() >= 1) {
+            Log.d("update marker", "new Location: markerList passed");
+            for (int i = 0; i < markerList.size(); i++) {
+                Log.d("update marker", "new Location: traversal started");
+                String key = Objects.requireNonNull(markerList.get(i).getTag()).toString();
+                locationRef = FirebaseFirestore.getInstance()
+                        .collection(locality)
+                        .document(key);
+                Log.d("update marker", "new Location: continue");
+                final GeoPoint[] gp = new GeoPoint[1];
+                int finalI = i;
+                locationRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                        if (task.isSuccessful()) {
+                            if (task.getResult().getGeoPoint("geoPoint") != null) {
+                                gp[0] = task.getResult().getGeoPoint("geoPoint");
+                                assert gp[0] != null;
+                                markerList.get(finalI).setPosition(new LatLng(gp[0].getLatitude(), gp[0].getLongitude()));
+                                Log.d("update marker", "new Location: " + gp[0]);
+                            }
+                        }
+
+                    }
+                });
+
+            }
+        }
+
+    }
+
+    private void updateMarkersRunnable() {
+        Log.d(TAG, "startUserLocationsRunnable: starting runnable for retrieving updated locations.");
+        if (!callbackPresent) {
+            mHandler.postDelayed(mRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    updateMarkers();
+                    mHandler.postDelayed(mRunnable, LOCATION_UPDATE_INTERVAL);
+                }
+            }, LOCATION_UPDATE_INTERVAL);
+            callbackPresent = true;
+        }
+
+    }
+
     public class getDeviceLocationAsync extends AsyncTask<String, String, String> {
 
 
@@ -1936,6 +1989,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             if (currentLocation != null) {
                 moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
                 executeService();
+                updateMarkersRunnable();
             }
 
         }

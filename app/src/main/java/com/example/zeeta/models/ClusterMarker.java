@@ -19,28 +19,44 @@ public class ClusterMarker implements ClusterItem {
         this.user = user;
     }
 
-    public ClusterMarker() {
-
-    }
-
-    @Override
-    public LatLng getPosition() {
-        return null;
-    }
-
-    @Override
-    public String getTitle() {
-        return null;
-    }
-
-    @Override
-    public String getSnippet() {
-        return null;
-    }
 
     public int getIconPicture() {
-
         return iconPicture;
+    }
 
+    public void setIconPicture(int iconPicture) {
+        this.iconPicture = iconPicture;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public LatLng getPosition() {
+        return position;
+    }
+
+    public void setPosition(LatLng position) {
+        this.position = position;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getSnippet() {
+        return snippet;
+    }
+
+    public void setSnippet(String snippet) {
+        this.snippet = snippet;
     }
 }
