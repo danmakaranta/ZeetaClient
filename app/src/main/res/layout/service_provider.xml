@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/serviceProviderCardView"
     android:layout_width="250dp"
-    android:layout_height="250dp"
+    android:layout_height="300dp"
     android:background="@drawable/relative_layout_background"
     android:orientation="vertical">
 

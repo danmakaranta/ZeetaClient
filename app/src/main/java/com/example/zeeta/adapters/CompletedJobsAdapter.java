@@ -63,6 +63,10 @@ public class CompletedJobsAdapter extends ArrayAdapter<CompletedJobs> {
             int colorStatus = ContextCompat.getColor(getContext(), R.color.green1);
             jobStatus.setText("" + jobsInfo.getStatus());
             jobStatus.setTextColor(colorStatus);
+        } else if (status.equalsIgnoreCase("Awaiting")) {
+            int colorStatus = ContextCompat.getColor(getContext(), R.color.green1);
+            jobStatus.setText("" + jobsInfo.getStatus());
+            jobStatus.setTextColor(colorStatus);
         }
 
 

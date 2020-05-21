@@ -193,7 +193,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     //progress bars for geolocation
     private ProgressBar pickUpP;
     private String serviceProviderPhone;
-    private String getServiceProviderName;
+
     private GeoPoint serviceProviderLocation;
     private GeoPoint pickupLocation;
 
@@ -223,6 +223,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private Runnable mRunnable;
     private boolean callbackPresent = false;
     private long LOCATION_UPDATE_INTERVAL = 6000;
+    private String customerName = "";
 
     //for adding a custom marker,
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId){
@@ -742,7 +743,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         checkLocationPermission();
         new getDeviceLocationAsync().execute();
         updateCustomerDetails();
-        RADIUS = 20;
+        RADIUS = 7;
         serviceFound = false;
         keyIDs = new ArrayList();
         keysFound = new ArrayList<StaffFound>();
@@ -902,12 +903,15 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                 }
                             }
 
-
                         }
 
                         @Override
                         public void onKeyExited(String key) {
-
+                            for (int i = 0; i <= markerList.size(); i++) {
+                                if (Objects.requireNonNull(markerList.get(i).getTag()).toString().equalsIgnoreCase(key)) {
+                                    markerList.get(i).remove();
+                                }
+                            }
 
                         }
 
@@ -1319,6 +1323,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 if (task.isSuccessful()) {
                     DocumentSnapshot doc = task.getResult();
                     customerPhoneNumber = doc.getString("phoneNumber");
+                    customerName = doc.getString("name");
                 }
             }
         });
@@ -1366,7 +1371,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 if (documentSnapshot != null && documentSnapshot.exists()) {
                     Log.d(TAG, "Current data: " + documentSnapshot.getData());
                     if (documentSnapshot.getString("accepted").equals("Accepted")) {
-                        Toast.makeText(MapActivity.this, "Your request have been accepted! Hold on for Client!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MapActivity.this, "Your request have been accepted! Hold on for Service Provider!", Toast.LENGTH_LONG).show();
 
                         setJobDataOnCloud(id);
 
@@ -1484,7 +1489,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
                     serviceProviderPhone = "";
-                    getServiceProviderName = "";
+                    serviceProviderName = "";
                     hourlyRate = 0;
                     serviceRendered = "";
                     DocumentSnapshot doc = task.getResult();
@@ -1496,7 +1501,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     Long hourly = (Long) doc.get("hourlyRate");
 
                     serviceProviderPhone = number;
-                    getServiceProviderName = name;
+                    serviceProviderName = name;
                     hourlyRate = hourly;
                     serviceRendered = jobType;
 
@@ -1601,8 +1606,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         try {
             if (serv.equalsIgnoreCase("Taxi") || serv.equalsIgnoreCase("Trycycle(Keke)")) {
-                GeoPoint hmedix = new GeoPoint(9.1022, 7.4058);
-                GeoPoint wuse = new GeoPoint(9.0747, 7.4760);
 
                 getZeetaDriver(marker.getTag().toString());
             } else {
@@ -1620,25 +1623,25 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         DocumentReference jobData = null;
         jobData = FirebaseFirestore.getInstance()
                 .collection("Customers")
-                .document(FirebaseAuth.getInstance().getUid()).collection("JobData").document(id);
+                .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("JobData").document(id);
         spJobData = FirebaseFirestore.getInstance()
                 .collection("Users")
                 .document(id).collection("JobData").document(FirebaseAuth.getInstance().getUid());
 
-        jobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, id, serviceProviderPhone, serviceProviderName, (long) 0, (long) 1000, true,
+        jobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), destination, serviceProviderLocation, id, serviceProviderPhone, serviceProviderName, (long) 0, (long) 0, true,
                 false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
-                        Log.d("setJobData", "Job data set");
+                        Log.d("setJobData", "Job data set: client");
                     }
                 });
-        spJobData.set(new GeneralJobData(pickupLocation, destination, serviceProviderLocation, FirebaseAuth.getInstance().getUid(), serviceProviderPhone, getServiceProviderName, (long) 0, (long) 1000, true,
+        spJobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), destination, serviceProviderLocation, FirebaseAuth.getInstance().getUid(), customerPhoneNumber, customerName, (long) 0, (long) 0, true,
                 false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
-                        Log.d("setJobData", "Job data set");
+                        Log.d("setJobData", "Job data set: SPROvider");
                     }
                 });
 

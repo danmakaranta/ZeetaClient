@@ -1,10 +1,5 @@
 package com.example.zeeta;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-
 import android.Manifest;
 import android.app.Dialog;
 import android.content.Context;
@@ -14,7 +9,6 @@ import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
@@ -43,13 +37,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
 public class Jobs extends AppCompatActivity {
 
     private ArrayList<String> selectedServices;
     final ArrayList<CompletedJobs> completedjobsList = new ArrayList<CompletedJobs>();
     CollectionReference jobsOnCloud = FirebaseFirestore.getInstance()
             .collection("Customers")
-            .document(FirebaseAuth.getInstance().getUid()).collection("JobData");
+            .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("JobData");
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -100,12 +99,12 @@ public class Jobs extends AppCompatActivity {
 
                     for (QueryDocumentSnapshot document : task.getResult()) {
 
-                        String name = document.getData().get("serviceProviderName").toString();
-                        String jobRendered = document.getData().get("serviceRendered").toString();
+                        String name = Objects.requireNonNull(document.getData().get("name")).toString();
+                        String jobRendered = Objects.requireNonNull(document.getData().get("serviceRendered")).toString();
                         Timestamp date = (Timestamp) document.getData().get("timeStamp");
-                        String jobStatus = document.getData().get("status").toString();
-                        String employeeID = document.getData().get("serviceProviderID").toString();
-                        String phonenumber = document.getData().get("serviceProviderPhoneNumber").toString();
+                        String jobStatus = Objects.requireNonNull(document.getData().get("status")).toString();
+                        String employeeID = Objects.requireNonNull(document.getData().get("serviceID")).toString();
+                        String phonenumber = Objects.requireNonNull(document.getData().get("phoneNumber")).toString();
 
                         completedjobsList.add(new CompletedJobs(name, date, jobRendered, jobStatus, employeeID, phonenumber));
 
@@ -146,15 +145,16 @@ public class Jobs extends AppCompatActivity {
                                                 Long hrs = (Long) doc.getData().get("hoursWorked");
                                                 hours.setText("" + hrs);
                                                 TextView total = dialog.findViewById(R.id.total_earned);
-                                                long tot = (long) doc.get("amount");
-                                                total.setText("N" + tot);
+                                                //long tot = (long) doc.get("amount");
+                                                double totDouble = (double) doc.get("amount");
+                                                total.setText("N" + totDouble);
                                                 TextView hoursRate = dialog.findViewById(R.id.hours_rate);
-                                                int hrate = (int) (tot / hrs);
+                                                int hrate = (int) (totDouble / hrs);
                                                 hoursRate.setText("N" + hrate);
                                                 paymentBtn.setOnClickListener(new View.OnClickListener() {
                                                     @Override
                                                     public void onClick(View v) {
-                                                        if (tot <= 0) {
+                                                        if (totDouble <= 0) {
                                                             Toast.makeText(Jobs.this, "Request for an invoice from the " + jobData.getJob(), Toast.LENGTH_LONG).show();
                                                         }
                                                     }

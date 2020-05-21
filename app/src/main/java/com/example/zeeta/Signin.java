@@ -1,6 +1,9 @@
 package com.example.zeeta;
 
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -22,7 +25,10 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
 
+import java.util.Objects;
+
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import static android.text.TextUtils.isEmpty;
@@ -40,6 +46,7 @@ public class Signin extends AppCompatActivity implements
     private ProgressBar mProgressBar;
 
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,6 +56,12 @@ public class Signin extends AppCompatActivity implements
         mEmail = findViewById(R.id.email);
         mPassword = findViewById(R.id.password);
         mProgressBar = findViewById(R.id.progressBar);
+
+        if (isInternetConnection()) {
+            setupFirebaseAuth();
+        } else {
+            Toast.makeText(Signin.this, "Please check your internet connection!", Toast.LENGTH_SHORT).show();
+        }
 
         setupFirebaseAuth();
         findViewById(R.id.sign_in_button).setOnClickListener(this);
@@ -170,6 +183,19 @@ public class Signin extends AppCompatActivity implements
         if (mProgressBar.getVisibility() == View.VISIBLE) {
             mProgressBar.setVisibility(View.INVISIBLE);
         }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    public boolean isInternetConnection() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        assert connectivityManager != null;
+        if ((connectivityManager.getActiveNetworkInfo()) != null) {
+            return (Objects.requireNonNull(connectivityManager.getActiveNetworkInfo())).isConnected();
+        } else {
+            return false;
+        }
+
     }
 
     private void hideSoftKeyboard() {

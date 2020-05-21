@@ -88,6 +88,7 @@
     <string name="fullname">Enter Full Name</string>
     <string name="title_activity_start_page">StartPage</string>
     <string name="ride_information">Ride Information:</string>
+    <string name="job_status">status</string>
 
 
 </resources>
