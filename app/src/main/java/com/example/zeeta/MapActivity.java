@@ -133,7 +133,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final int LOCATION_PERMISSIONS_REQUEST_CODE = 1234;
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
-    private static final float DEFAULT_ZOOM = 14f;
+    private static final float DEFAULT_ZOOM = 17f;
     public static final int OPERATION_SEARCH_LOADER = 22;
     public static final String OPERATION_URL_EXTRA = "price_estimate";
     AutoCompleteTextView pickET;
@@ -224,6 +224,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private boolean callbackPresent = false;
     private long LOCATION_UPDATE_INTERVAL = 6000;
     private String customerName = "";
+    private String destinationText;
 
     //for adding a custom marker,
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId){
@@ -815,7 +816,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             }
         });
 
-        //executeService();
+
     }
 
     private void moveCamera(LatLng latlng, float zoom, String title) {
@@ -884,11 +885,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                     }
                                     moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                     markerList.add(staffMarker);
+                                    updateMarkersRunnable();
                                     //staffMarker.showInfoWindow();
                                 } else {
-                                    if (markerContains(key)) {
-
-                                    } else {
+                                    if (!markerContains(key)) {
                                         Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
                                         staffMarker.setTag(key);
                                         if (requestedService.equalsIgnoreCase("Taxi") || requestedService.equalsIgnoreCase("Trycycle(Keke)")) {
@@ -899,6 +899,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                         markerList.add(staffMarker);
                                         //staffMarker.showInfoWindow();
+
                                     }
                                 }
                             }
@@ -907,10 +908,13 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
                         @Override
                         public void onKeyExited(String key) {
-                            for (int i = 0; i <= markerList.size(); i++) {
-                                if (Objects.requireNonNull(markerList.get(i).getTag()).toString().equalsIgnoreCase(key)) {
-                                    markerList.get(i).remove();
+                            for (int i = 0; i < markerList.size(); i++) {
+                                if (markerList.get(i).getTag() != null) {
+                                    if (Objects.requireNonNull(markerList.get(i).getTag()).toString().equalsIgnoreCase(key)) {
+                                        // markerList.get(i).remove();
+                                    }
                                 }
+
                             }
 
                         }
@@ -957,7 +961,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 geoFire = new GeoFire(ref);
 
                 serviceFound = false;
-                RADIUS = 20;
+                RADIUS = 10;
                 getClientRequest(); //get the service, if found, pin it to map with custom marker
             }
 
@@ -1175,37 +1179,32 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
 
     public boolean engaged(String id) {
+        Log.d(TAG, "Engaged() called for " + id);
 
-        DocumentReference serviceProviderStatus = FirebaseFirestore.getInstance()
+        DocumentReference engagementStatus = FirebaseFirestore.getInstance()
                 .collection("Users")
-                .document(id).collection("Request").document("ongoing");
-        final boolean[] acceptance = new boolean[1];
+                .document(id);
+        final boolean[] status = new boolean[1];
 
-        serviceProviderStatus.addSnapshotListener(new EventListener<DocumentSnapshot>() {
 
+        engagementStatus.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
             @Override
-            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot doc = task.getResult();
+                    boolean engaged = doc.getBoolean("engaged");
+                    if (engaged) {
 
-                assert documentSnapshot != null;
-                if (documentSnapshot.exists()) {
-                   /* String temp = documentSnapshot.getString("accepted");
-                    if (temp != null) {
-                        if (temp.equalsIgnoreCase("accepted") || temp.equalsIgnoreCase("awaiting")) {
-                            serviceProviderAcceptanceStatus = true;
-                            acceptance[0] = true;
-                            Log.d("Statusss:", "Statusessss: " + temp + id);
-                        }
-                    }*/
+                        status[0] = true;
+                    } else {
 
-                } else {
-                    serviceProviderAcceptanceStatus = false;
-                    acceptance[0] = false;
+                        status[0] = false;
+                    }
                 }
-
             }
         });
-        //return serviceProviderAcceptanceStatus;
-        return acceptance[0];
+
+        return status[0];
 
     }
 
@@ -1396,68 +1395,155 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private void sendRideRequest(String id, GeoPoint pickup, GeoPoint destination, Long amount) {
         final int[] counter = {0};
         timeStamp = Timestamp.now();
-        DocumentReference clientRequest = FirebaseFirestore.getInstance()
+
+        DocumentReference clientRideRequest = FirebaseFirestore.getInstance()
                 .collection("Users")
                 .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
         DocumentReference customerRequest = FirebaseFirestore.getInstance()
                 .collection("Customers")
                 .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
 
-        JourneyInfo journeyInfo = new JourneyInfo(pickup, destination, FirebaseAuth.getInstance().getUid(), customerPhoneNumber, (long) 0, timeStamp, (long) amount, "Awaiting", false, false);
 
-        clientRequest.set(journeyInfo).addOnCompleteListener(new OnCompleteListener<Void>() {
+        DocumentReference spJobData = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id).collection("RideData").document(FirebaseAuth.getInstance().getUid());
+
+
+        JourneyInfo journeyInfo = new JourneyInfo(pickup, destination, FirebaseAuth.getInstance().getUid(),
+                customerPhoneNumber, (long) 0, timeStamp, (long) amount, "Awaiting", false, false);
+
+        final DocumentReference customerjobData = FirebaseFirestore.getInstance()
+                .collection("Customers")
+                .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("JobData").document(id);
+
+
+        GeneralJobData generalJobData = new GeneralJobData(pickup, destination, null, FirebaseAuth.getInstance().getUid(),
+                customerPhoneNumber, customerName, (long) 0, (long) amount, "Awaiting",
+                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0, false, false);
+        spJobData.set(generalJobData).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
-                if (task.isSuccessful()) {
-                    driverDialog.dismiss();
-                    Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for driver", Toast.LENGTH_LONG).show();
-                    clientRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
-                        @Override
-                        public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                            counter[0] = counter[0] + 1;
-                            if (e != null) {
-                                Log.w(TAG, "Listen failed.", e);
-                                return;
-                            }
-
-                            if (documentSnapshot != null && documentSnapshot.exists()) {
-                                Log.d(TAG, "Current data: " + documentSnapshot.getData());
-                                String accepted = documentSnapshot.getString("accepted");
-                                if (accepted != null) {
-                                    if (accepted.equalsIgnoreCase("Accepted")) {
-
-                                        customerRequest.set(journeyInfo).addOnCompleteListener(new OnCompleteListener<Void>() {
-                                            @Override
-                                            public void onComplete(@NonNull Task<Void> task) {
-                                                Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
-                                            }
-                                        });
-
-                                    } else if (accepted.equalsIgnoreCase("Declined")) {
-
-                                        if (counter[0] > 1) {
-                                            //clear your request since it has been declined
-                                            clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                                @Override
-                                                public void onComplete(@NonNull Task<Void> task) {
-                                                    Log.w(TAG, "Ride Request declined, clear request data.");
-                                                }
-                                            });
-                                            Toast.makeText(MapActivity.this, "Your request have been declined, please choose another Vehicle", Toast.LENGTH_LONG).show();
-
-                                        }
-
+                clientRideRequest.set(generalJobData).addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        if (task.isSuccessful()) {
+                            driverDialog.dismiss();
+                            Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for your driver.", Toast.LENGTH_LONG).show();
+                            clientRideRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+                                @Override
+                                public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                                    counter[0] = counter[0] + 1;
+                                    if (e != null) {
+                                        Log.w(TAG, "Listen failed.", e);
+                                        return;
                                     }
 
-                                }
+                                    if (documentSnapshot != null && documentSnapshot.exists()) {
 
-                            }
+                                        String accepted = documentSnapshot.getString("accepted");
+                                        boolean started = documentSnapshot.getBoolean("started");
+                                        boolean arrivedPickUp = documentSnapshot.getBoolean("arrived");
+                                        boolean cancelRide = documentSnapshot.getBoolean("cancelRide");
+                                        boolean endedRide = documentSnapshot.getBoolean("ended");
+
+                                        try {// nothing more but to slow down execution a bit to get results before proceeding
+                                            Thread.sleep(2000);
+                                        } catch (InterruptedException excp) {
+                                            excp.printStackTrace();
+                                        }
+
+                                        if (accepted != null) {
+                                            if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide) {
+
+                                                Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
+
+                                                customerjobData.set(new GeneralJobData(pickup, destination, null, id,
+                                                        serviceProviderPhone, serviceProviderName, (long) 0, (long) amount, "Accepted",
+                                                        false, false, serviceRendered, timeStamp, "Awaiting", (long) 0, false, false)).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+
+                                                    }
+                                                });
+
+                                            } else if (accepted.equalsIgnoreCase("Declined")) {
+
+                                                if (counter[0] > 1) {
+                                                    //clear your request since it has been declined
+                                                    clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                        @Override
+                                                        public void onComplete(@NonNull Task<Void> task) {
+                                                            makeLongToast("Your request have been declined, please choose another Vehicle");
+                                                            Log.w(TAG, "Ride Request declined, clear request data.");
+                                                            customerjobData.update("cancelRide", true);
+                                                            customerjobData.update("status", "Declined");
+
+                                                        }
+                                                    });
+
+                                                }
+
+                                            } else if (started && !endedRide) {//if the driver has started the journey
+                                                customerjobData.update("started", true).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                        //show layout for ride control, for ability to end ride
+                                                        makeLongToast("Your Journey Has Started!");
+                                                    }
+                                                });
+                                            } else if (endedRide) {
+                                                clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                        makeLongToast("The Journey has been completed. Thank you!");
+                                                        Log.w(TAG, "journey completed, clear request data.");
+                                                        customerjobData.set(new GeneralJobData(pickup, destination, null, id,
+                                                                serviceProviderPhone, serviceProviderName, (long) 0, (long) amount, "Accepted",
+                                                                true, true, serviceRendered, timeStamp, "Completed", (long) 0, true, false)).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                            @Override
+                                                            public void onComplete(@NonNull Task<Void> task) {
+
+                                                            }
+                                                        });
+                                                    }
+                                                });
+
+                                            } else if (cancelRide) {
+                                                clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                        makeLongToast("Your Ride request has been canceled, please choose another Vehicle");
+                                                        Log.w(TAG, "Ride Request declined, clear request data.");
+                                                        customerjobData.update("cancelRide", true);
+                                                    }
+                                                });
+                                            } else if (arrivedPickUp && !cancelRide) {
+
+                                                customerjobData.update("arrived", true).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                        makeLongToast("Your Driver has arrived");
+                                                    }
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            });
                         }
-                    });
-                }
+                    }
+                });
             }
         });
 
+    }
+
+    private void makeLongToast(String s) {
+        Toast.makeText(MapActivity.this, s, Toast.LENGTH_LONG).show();
+    }
+
+    private void makeshortToast(String s) {
+        Toast.makeText(MapActivity.this, s, Toast.LENGTH_SHORT).show();
     }
 
 
@@ -1628,16 +1714,16 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .collection("Users")
                 .document(id).collection("JobData").document(FirebaseAuth.getInstance().getUid());
 
-        jobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), destination, serviceProviderLocation, id, serviceProviderPhone, serviceProviderName, (long) 0, (long) 0, true,
-                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
+        jobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), destination, serviceProviderLocation, id, serviceProviderPhone, serviceProviderName, (long) 0, (long) 0, "Awaiting",
+                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0, true, false))
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
                         Log.d("setJobData", "Job data set: client");
                     }
                 });
-        spJobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), destination, serviceProviderLocation, FirebaseAuth.getInstance().getUid(), customerPhoneNumber, customerName, (long) 0, (long) 0, true,
-                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0))
+        spJobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), destination, serviceProviderLocation, FirebaseAuth.getInstance().getUid(), customerPhoneNumber, customerName, (long) 0, (long) 0, "Awaiting",
+                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0, true, false))
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
@@ -1728,6 +1814,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     String vehicleType = (String) doc.get("vehicleType");
                     String number = (String) doc.get("phoneNumber");
                     String name = (String) doc.get("name");
+
                     String rating = (String) doc.get("rating");
                     String vehicleNumber = (String) doc.get("vehicleNumber");
 
@@ -1816,6 +1903,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 sendRideBtn.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
+                        destinationText = destinationET.getText().toString();
                         sendRideRequest(id, pickupLocation, destination, (long) rideEstimateAmount);
 
                     }
@@ -1927,16 +2015,19 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         Log.d("update marker", "new Location: started");
         DocumentReference locationRef;
         if (markerList != null && markerList.size() >= 1) {
-            Log.d("update marker", "new Location: markerList passed");
-            for (int i = 0; i < markerList.size(); i++) {
-                Log.d("update marker", "new Location: traversal started");
-                String key = Objects.requireNonNull(markerList.get(i).getTag()).toString();
+
+            for (int i = 0; i < markerList.size() - 1; i++) {
+                String key;
+                int finalI;
+                markerList.size();
+                key = (markerList.get(i).getTag()).toString();
+                finalI = i;
+
                 locationRef = FirebaseFirestore.getInstance()
                         .collection(locality)
                         .document(key);
-                Log.d("update marker", "new Location: continue");
                 final GeoPoint[] gp = new GeoPoint[1];
-                int finalI = i;
+
                 locationRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
                     @Override
                     public void onComplete(@NonNull Task<DocumentSnapshot> task) {
@@ -1953,6 +2044,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 });
 
             }
+
         }
 
     }
@@ -1992,7 +2084,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             if (currentLocation != null) {
                 moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
                 executeService();
-                updateMarkersRunnable();
+
             }
 
         }
