@@ -84,6 +84,7 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -225,13 +226,14 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private long LOCATION_UPDATE_INTERVAL = 6000;
     private String customerName = "";
     private String destinationText;
+    private boolean navOpened = false;
 
     //for adding a custom marker,
-    private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId){
+    private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId) {
 
         Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
-        vectorDrawable.setBounds(0,0,vectorDrawable.getIntrinsicWidth(),vectorDrawable.getIntrinsicHeight());
-        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(),vectorDrawable.getIntrinsicHeight(),Bitmap.Config.ARGB_8888);
+        vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
+        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         vectorDrawable.draw(canvas);
         return BitmapDescriptorFactory.fromBitmap(bitmap);
@@ -382,13 +384,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     // reset all variables for service
     @Override
     public void onBackPressed() {
-        serviceFound = false;
-        if (selectedServices != null) {
-            selectedServices.clear();
-        }
-        serviceProviderAcceptanceStatus = false;
-        mMap.clear();
-        startActivity(new Intent(getApplicationContext(), Request.class));
+
     }
 
     private void addPolylinesToMap(final DirectionsResult result) {
@@ -786,6 +782,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     .build();
         }
 
+        NavigationView navigationView = findViewById(R.id.drawer_navigation);
+
+        //navigationView.setVisibility(View.GONE);
+
+
         //initialize and assign variables for the bottom navigation
         BottomNavigationView bottomNavigationView = findViewById(R.id.nav_view);
         //set home icon selected
@@ -796,28 +797,66 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
                 switch (menuItem.getItemId()) {
                     case R.id.home_button:
+                        navigationView.setVisibility(View.GONE);
+                        navOpened = false;
                         return true;
                     case R.id.jobs_button:
                         startActivity(new Intent(getApplicationContext(), Jobs.class).putExtra("RequestedServices", selectedServices));
                         overridePendingTransition(0, 0);
-                        //getUserLocations();
                         return true;
                     case R.id.dashboard_button:
                         startActivity(new Intent(getApplicationContext(), DashBoard.class).putExtra("RequestedServices", selectedServices));
                         overridePendingTransition(0, 0);
                         return true;
-                    case R.id.sos_button:
-                        /*startActivity(new Intent(getApplicationContext(), DashBoard.class));
-                        overridePendingTransition(0, 0);
-                        return true;   */
+                    case R.id.services_list:
+                        if (navOpened) {
+                            navOpened = false;
+                            navigationView.setVisibility(View.GONE);
+                            bottomNavigationView.setSelectedItemId(R.id.home_button);
+                        } else {
+                            navOpened = true;
+                            navigationView.setVisibility(View.VISIBLE);
+                            // bottomNavigationView.setSelectedItemId(R.id.services_list);
+                        }
+                        return true;
 
                 }
                 return false;
             }
         });
 
+        navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                int itemSelected = item.getItemId();
+                switch (itemSelected) {
+                    case R.id.taxiService:
+                        executeService("Taxi");
+                        navigationView.setVisibility(View.GONE);
+                        return true;
+                    case R.id.tricycleService:
+                        executeService("Tricycle");
+                        navigationView.setVisibility(View.GONE);
+                        return true;
+                    case R.id.lawerService:
+                        executeService("Lawyer");
+                        navigationView.setVisibility(View.GONE);
+                        return true;
+                    case R.id.mechanicService:
+                        executeService("Mechanic");
+                        navigationView.setVisibility(View.GONE);
+                        return true;
+                    case R.id.logout:
+                        //blah .....
+                        return true;
+                }
+
+                return false;
+            }
+        });
 
     }
+
 
     private void moveCamera(LatLng latlng, float zoom, String title) {
 
@@ -842,6 +881,16 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private void getClientRequest() {
 
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
         mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
             @Override
             public void onComplete(@NonNull Task<android.location.Location> task) {
@@ -947,9 +996,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         });
     }
 
-    private void executeService() {
+    private void executeService(String service) {
         selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
-        if (selectedServices != null && selectedServices.size() >= 1) {
+        /*if (selectedServices != null && selectedServices.size() >= 1) {
 
             for (int i = 0; i <= selectedServices.size() - 1; i++) {
 
@@ -957,7 +1006,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 requestedService = serv;
 
                 DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
-                Log.d("ref", "" + "refff" + ref.toString());
+
                 geoFire = new GeoFire(ref);
 
                 serviceFound = false;
@@ -965,7 +1014,15 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 getClientRequest(); //get the service, if found, pin it to map with custom marker
             }
 
-        }
+        }*/
+        serv = "" + service;
+        requestedService = service;
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
+        geoFire = new GeoFire(ref);
+        serviceFound = false;
+        RADIUS = 10;
+        getClientRequest(); //get the service, if found, pin it to map with custom marker
+
 
     }
 
@@ -2083,7 +2140,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             //move camera to current location on map
             if (currentLocation != null) {
                 moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
-                executeService();
+                //executeService("");
 
             }
 
@@ -2114,7 +2171,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                 Location location = task.getResult();
                                 currentLocation = location;
                                 try {
-                                    locality = null;
+
                                     //locality = getLocality();
                                     locality = getLocalityName(MapActivity.this, location.getLatitude(), location.getLongitude());
 

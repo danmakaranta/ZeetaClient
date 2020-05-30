@@ -73,7 +73,7 @@
     <string name="title_activity_bottom_nav">bottomNav</string>
     <string name="typeofservice">Type the service you need: Mechanic, Plumber, Lawyer,Tailor, Computer operator, Graphic designer, Gardner,
         etc</string>
-    <string name="Type_of_service_instruction">Please select the type of service(s):</string>
+    <string name="Type_of_service_instruction">Services:</string>
     <string name="search_service">Search service</string>
     <string name="computer_repair">Computer repair</string>
     <string name="title_activity_jobs_information">Job information</string>
@@ -89,6 +89,11 @@
     <string name="title_activity_start_page">StartPage</string>
     <string name="ride_information">Ride Information:</string>
     <string name="job_status">status</string>
+    <string name="services">Services</string>
+    <string name="tricycle_keke">Tricycle(keke)</string>
+    <string name="mechanic">Mechanic</string>
+    <string name="log_out">Log out</string>
+    <string name="lawyer">Lawyer</string>
 
 
 </resources>

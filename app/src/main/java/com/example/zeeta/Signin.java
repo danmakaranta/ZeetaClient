@@ -100,7 +100,7 @@ public class Signin extends AppCompatActivity implements
                                 Log.d(TAG, "onComplete: successfully set the user client.");
                                 com.example.zeeta.models.User user = task.getResult().toObject(User.class);
                                 ((UserClient) (getApplicationContext())).setUser(user);
-                                Intent intent = new Intent(Signin.this, Request.class);
+                                Intent intent = new Intent(Signin.this, MapActivity.class);
                                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                 startActivity(intent);
                             }

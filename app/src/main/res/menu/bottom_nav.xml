@@ -16,8 +16,8 @@
         android:icon="@drawable/jobs"
         android:title="@string/jobs" />
     <item
-        android:id="@+id/sos_button"
-        android:icon="@drawable/sos"
-        android:title="@string/sos" />
+        android:id="@+id/services_list"
+        android:icon="@drawable/search1"
+        android:title="@string/services" />
 
 </menu>
