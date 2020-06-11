@@ -94,6 +94,10 @@
     <string name="mechanic">Mechanic</string>
     <string name="log_out">Log out</string>
     <string name="lawyer">Lawyer</string>
+    <string name="barber">Barber</string>
+    <string name="carpenter">Carpenter</string>
+    <string name="plumbing">Plumbing</string>
+    <string name="cancel">Cancel</string>
 
 
 </resources>

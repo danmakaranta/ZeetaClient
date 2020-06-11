@@ -228,6 +228,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private String destinationText;
     private boolean navOpened = false;
 
+    private Button cancelRequestBtn;
+    private DocumentReference acceptanceUpdate;
+    private DocumentReference clientRideRequest;
+    private DocumentReference customerRequest;
+
     //for adding a custom marker,
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId) {
 
@@ -550,15 +555,32 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-
+        mMap = googleMap;
         googleMap.getUiSettings().setMyLocationButtonEnabled(false);
         googleMap.getUiSettings().setZoomControlsEnabled(true);
-        mMap = googleMap;
+        googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                try {
+                    String servType = marker.getSnippet();
+                    if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
+                        getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString());
+                    } else {
+                        getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString());
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return false;
+            }
+        });
+
         mMap.setOnInfoWindowClickListener(this);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         new getDeviceLocationAsync().execute();
-        mMap.clear();
+
         mMap.setOnPolylineClickListener(this);
 
     }
@@ -746,6 +768,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         keysFound = new ArrayList<StaffFound>();
         serviceProviderAcceptanceStatus = false;
 
+
         // Construct a GeoDataClient for the Google Places API for Android.
         mGeoDataClient = Places.getGeoDataClient(this, null);
 
@@ -781,6 +804,30 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     .apiKey(getString(R.string.google_directions_api_key))
                     .build();
         }
+        cancelRequestBtn = findViewById(R.id.cancelRequest);
+        cancelRequestBtn.setVisibility(View.INVISIBLE);//hide the button for now until needed
+        cancelRequestBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (clientRideRequest != null) {
+
+                    clientRideRequest.update("cancelRide", true).addOnCompleteListener(new OnCompleteListener<Void>() {
+                        @Override
+                        public void onComplete(@NonNull Task<Void> task) {
+                            if (task.isSuccessful()) {
+                                cancelRequestBtn.setVisibility(View.INVISIBLE);
+                                customerRequest.update("cancelRide", true).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                    @Override
+                                    public void onComplete(@NonNull Task<Void> task) {
+
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+        });
 
         NavigationView navigationView = findViewById(R.id.drawer_navigation);
 
@@ -855,6 +902,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             }
         });
 
+
     }
 
 
@@ -880,7 +928,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     private void getClientRequest() {
 
-
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
             //    ActivityCompat#requestPermissions
@@ -903,8 +950,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         geoQuery = geoFire.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
                     }
 
-                    geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
 
+                    geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
 
                         @Override
                         public void onKeyEntered(String key, GeoLocation location) {
@@ -918,7 +965,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                     String markerTitle;
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                         markerTitle = requestedService + " " + timeApart(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(location.latitude, location.longitude)) + "minutes away";
-
+                                        try {// nothing more but to slow down execution a bit to get results before proceeding
+                                            Thread.sleep(2000);
+                                        } catch (InterruptedException excp) {
+                                            excp.printStackTrace();
+                                        }
                                     } else {
                                         markerTitle = requestedService + " ...minutes away!";
                                     }
@@ -928,26 +979,30 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                     staffMarker.setTag(key);
                                     //choose icon type for transport or other service
                                     if (requestedService.equalsIgnoreCase("Taxi") || requestedService.equalsIgnoreCase("Trycycle(Keke)")) {
-                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car64));
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
+                                        staffMarker.setSnippet(requestedService);
                                     } else {
                                         staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                        staffMarker.setSnippet(requestedService);
                                     }
                                     moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                     markerList.add(staffMarker);
                                     updateMarkersRunnable();
-                                    //staffMarker.showInfoWindow();
+                                    staffMarker.showInfoWindow();
                                 } else {
                                     if (!markerContains(key)) {
                                         Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
                                         staffMarker.setTag(key);
                                         if (requestedService.equalsIgnoreCase("Taxi") || requestedService.equalsIgnoreCase("Trycycle(Keke)")) {
-                                            staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car64));
+                                            staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
+                                            staffMarker.setSnippet(requestedService);
                                         } else {
                                             staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
+                                            staffMarker.setSnippet(requestedService);
                                         }
                                         moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                         markerList.add(staffMarker);
-                                        //staffMarker.showInfoWindow();
+                                        staffMarker.showInfoWindow();
 
                                     }
                                 }
@@ -997,32 +1052,19 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     private void executeService(String service) {
-        selectedServices = (ArrayList<String>) getIntent().getSerializableExtra("RequestedServices");
-        /*if (selectedServices != null && selectedServices.size() >= 1) {
 
-            for (int i = 0; i <= selectedServices.size() - 1; i++) {
-
-                serv = "" + selectedServices.get(i);
-                requestedService = serv;
-
-                DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
-
-                geoFire = new GeoFire(ref);
-
-                serviceFound = false;
-                RADIUS = 10;
-                getClientRequest(); //get the service, if found, pin it to map with custom marker
-            }
-
-        }*/
         serv = "" + service;
         requestedService = service;
         DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
         geoFire = new GeoFire(ref);
         serviceFound = false;
         RADIUS = 10;
+        try {// nothing more but to slow down execution a bit to get results before proceeding
+            Thread.sleep(2000);
+        } catch (InterruptedException excp) {
+            excp.printStackTrace();
+        }
         getClientRequest(); //get the service, if found, pin it to map with custom marker
-
 
     }
 
@@ -1412,9 +1454,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     private void listenForUpdate(String id) {
 
-        DocumentReference acceptanceUpdate = FirebaseFirestore.getInstance()
+        acceptanceUpdate = FirebaseFirestore.getInstance()
                 .collection("Users")
-                .document(id).collection("Request").document("ongoing"); // testi
+                .document(id).collection("Request").document("ongoing");
+        final boolean[] notifyAcceptance = {false};
         acceptanceUpdate.addSnapshotListener(new EventListener<DocumentSnapshot>() {
             @Override
             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
@@ -1423,12 +1466,12 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     Log.w(TAG, "Listen failed.", e);
                     return;
                 }
-
                 if (documentSnapshot != null && documentSnapshot.exists()) {
                     Log.d(TAG, "Current data: " + documentSnapshot.getData());
-                    if (documentSnapshot.getString("accepted").equals("Accepted")) {
+                    if (documentSnapshot.getString("accepted").equals("Accepted") && !notifyAcceptance[0]) {
                         Toast.makeText(MapActivity.this, "Your request have been accepted! Hold on for Service Provider!", Toast.LENGTH_LONG).show();
-
+                        notifyAcceptance[0] = true;
+                        cancelRequestBtn.setVisibility(View.VISIBLE);
                         setJobDataOnCloud(id);
 
                     } else if (documentSnapshot.getString("accepted").equals("Declined")) {
@@ -1453,10 +1496,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         final int[] counter = {0};
         timeStamp = Timestamp.now();
 
-        DocumentReference clientRideRequest = FirebaseFirestore.getInstance()
+        clientRideRequest = FirebaseFirestore.getInstance()
                 .collection("Users")
                 .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
-        DocumentReference customerRequest = FirebaseFirestore.getInstance()
+        customerRequest = FirebaseFirestore.getInstance()
                 .collection("Customers")
                 .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
 
@@ -1465,9 +1508,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .collection("Users")
                 .document(id).collection("RideData").document(FirebaseAuth.getInstance().getUid());
 
-
-        JourneyInfo journeyInfo = new JourneyInfo(pickup, destination, FirebaseAuth.getInstance().getUid(),
-                customerPhoneNumber, (long) 0, timeStamp, (long) amount, "Awaiting", false, false);
 
         final DocumentReference customerjobData = FirebaseFirestore.getInstance()
                 .collection("Customers")
@@ -1510,9 +1550,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         }
 
                                         if (accepted != null) {
-                                            if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide) {
+                                            if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp) {
 
                                                 Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
+
+                                                showRideControlAndDirection(id);
 
                                                 customerjobData.set(new GeneralJobData(pickup, destination, null, id,
                                                         serviceProviderPhone, serviceProviderName, (long) 0, (long) amount, "Accepted",
@@ -1593,6 +1635,56 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             }
         });
 
+    }
+
+    private void showRideControlAndDirection(String id) {
+        cancelRequestBtn.setVisibility(View.VISIBLE);
+        for (int i = 0; i < markerList.size(); i++) {
+            String tempid = markerList.get(i).getId();
+
+            if (tempid.equalsIgnoreCase(id)) {
+                calculateDirectionsForRide(new GeoPoint(markerList.get(i).getPosition().latitude, markerList.get(1).getPosition().longitude));
+            }
+        }
+
+    }
+
+    private void calculateDirectionsForRide(GeoPoint gp) {
+        Log.d(TAG, "calculateDirections: calculating directions.");
+
+        com.google.maps.model.LatLng destination = new com.google.maps.model.LatLng(
+                pickupLocation.getLatitude(),
+                pickupLocation.getLongitude()
+        );
+        Log.d(TAG, "calculateDirections: finished calculating directions.");
+        DirectionsApiRequest directions = new DirectionsApiRequest(mDirectionApi);
+
+        directions.alternatives(false);
+        directions.origin(
+                new com.google.maps.model.LatLng(
+                        gp.getLatitude(),
+                        gp.getLongitude()
+                )
+        );
+
+        Log.d(TAG, "calculateDirections: destination: " + destination.toString());
+        directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
+            @Override
+            public void onResult(DirectionsResult result) {
+                Log.d(TAG, "calculateDirections: routes: " + result.routes[0].toString());
+                Log.d(TAG, "calculateDirections: duration: " + result.routes[0].legs[0].duration);
+                Log.d(TAG, "calculateDirections: distance: " + result.routes[0].legs[0].distance);
+                Log.d(TAG, "calculateDirections: geocodedWayPoints: " + result.geocodedWaypoints[0].toString());
+
+                Log.d(TAG, "onResult: successfully retrieved directions.");
+                addPolylinesToMap(result);
+            }
+
+            @Override
+            public void onFailure(Throwable e) {
+                Log.e(TAG, "calculateDirections: Failed to get directions: " + e.getMessage());
+            }
+        });
     }
 
     private void makeLongToast(String s) {
@@ -2077,7 +2169,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 String key;
                 int finalI;
                 markerList.size();
-                key = (markerList.get(i).getTag()).toString();
+                key = (Objects.requireNonNull(markerList.get(i).getTag())).toString();
                 finalI = i;
 
                 locationRef = FirebaseFirestore.getInstance()
@@ -2093,7 +2185,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                 gp[0] = task.getResult().getGeoPoint("geoPoint");
                                 assert gp[0] != null;
                                 markerList.get(finalI).setPosition(new LatLng(gp[0].getLatitude(), gp[0].getLongitude()));
-                                Log.d("update marker", "new Location: " + gp[0]);
                             }
                         }
 
@@ -2140,7 +2231,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             //move camera to current location on map
             if (currentLocation != null) {
                 moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
-                //executeService("");
+
 
             }
 

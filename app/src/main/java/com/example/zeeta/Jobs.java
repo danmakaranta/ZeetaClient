@@ -49,6 +49,8 @@ public class Jobs extends AppCompatActivity {
     CollectionReference jobsOnCloud = FirebaseFirestore.getInstance()
             .collection("Customers")
             .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("JobData");
+    private DocumentReference serviceProviderJobs;
+    private int hourlyrate;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -89,6 +91,14 @@ public class Jobs extends AppCompatActivity {
 
     }
 
+    public static int safeLongToInt(long l) {
+        if (l < Integer.MIN_VALUE || l > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException
+                    (l + " cannot be cast to int without changing its value.");
+        }
+        return (int) l;
+    }
+
     private void populateJobList() {
 
         jobsOnCloud.get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
@@ -110,6 +120,7 @@ public class Jobs extends AppCompatActivity {
 
                         ListAdapter myAdapter = new CompletedJobsAdapter(Jobs.this, completedjobsList, 1);
                         ListView myListView = (ListView) findViewById(R.id.jobs_completed2);
+
                         myListView.setAdapter(myAdapter);
 
                         myListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -149,8 +160,16 @@ public class Jobs extends AppCompatActivity {
                                                 double totDouble = (double) doc.get("amount");
                                                 total.setText("N" + totDouble);
                                                 TextView hoursRate = dialog.findViewById(R.id.hours_rate);
-                                                int hrate = (int) (totDouble / hrs);
-                                                hoursRate.setText("N" + hrate);
+                                                hourlyrate = (int) (totDouble / hrs);
+                                                if (hourlyrate <= 0) {
+                                                    hourlyrate = getServiceProviderRate(employeeID);
+                                                }
+                                                try {// nothing more but to slow down execution a bit to get results before proceeding
+                                                    Thread.sleep(2000);
+                                                } catch (InterruptedException excp) {
+                                                    excp.printStackTrace();
+                                                }
+                                                hoursRate.setText("N" + hourlyrate);
                                                 paymentBtn.setOnClickListener(new View.OnClickListener() {
                                                     @Override
                                                     public void onClick(View v) {
@@ -159,6 +178,8 @@ public class Jobs extends AppCompatActivity {
                                                         }
                                                     }
                                                 });
+                                            } else {
+                                                Toast.makeText(Jobs.this, "Request for an invoice from the " + jobData.getJob(), Toast.LENGTH_LONG).show();
                                             }
 
 
@@ -192,13 +213,34 @@ public class Jobs extends AppCompatActivity {
                                     clsJob.setOnClickListener(new View.OnClickListener() {
                                         @Override
                                         public void onClick(View v) {
-                                            dialog.dismiss();
+                                            serviceProviderJobs = FirebaseFirestore.getInstance()
+                                                    .collection("Users")
+                                                    .document(employeeID)
+                                                    .collection("JobData").document(FirebaseAuth.getInstance().getUid());
+                                            DocumentReference customerJobs = FirebaseFirestore.getInstance()
+                                                    .collection("Customers")
+                                                    .document(FirebaseAuth.getInstance().getUid())
+                                                    .collection("JobData").document(employeeID);
+                                            serviceProviderJobs.update("status", "Closed").addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                @Override
+                                                public void onComplete(@NonNull Task<Void> task) {
+                                                    if (task.isSuccessful()) {
+                                                        customerJobs.update("status", "Closed").addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                            @Override
+                                                            public void onComplete(@NonNull Task<Void> task) {
+                                                                if (task.isSuccessful()) {
+                                                                    dialog.dismiss();
+                                                                }
+                                                            }
+                                                        });
+
+                                                    }
+                                                }
+                                            });
+
                                         }
                                     });
-
                                     dialog.show();
-
-
                                 }
 
 
@@ -218,10 +260,26 @@ public class Jobs extends AppCompatActivity {
 
     }
 
+    private int getServiceProviderRate(String employeeID) {
+        DocumentReference hourlyrate = FirebaseFirestore.getInstance()
+                .collection("Users").document(employeeID);
+        final int[] employeeHourlyRate = new int[1];
+        hourlyrate.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot doc = task.getResult();
+                    employeeHourlyRate[0] = safeLongToInt((long) doc.get("hourlyRate"));
+                }
+            }
+        });
+        return employeeHourlyRate[0];
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.M)
     public boolean isInternetConnection() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         return connectivityManager.getActiveNetworkInfo().isConnectedOrConnecting();
     }
-    
+
 }

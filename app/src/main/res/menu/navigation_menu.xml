@@ -1,23 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/taxiService"
-        android:icon="@drawable/car"
-        android:title="Taxi" />
+    <group android:id="@+id/services_group">
 
-    <item
-        android:id="@+id/tricycleService"
-        android:icon="@drawable/tricycle"
-        android:title="@string/tricycle_keke" />
+        <item
+            android:id="@+id/taxiService"
+            android:icon="@drawable/car"
+            android:title="Taxi" />
 
-    <item
-        android:id="@+id/mechanicService"
-        android:icon="@drawable/mechanic"
-        android:title="@string/mechanic" />
-    <item
-        android:id="@+id/lawerService"
-        android:icon="@drawable/lawyer"
-        android:title="@string/lawyer" />
+        <item
+            android:id="@+id/tricycleService"
+            android:icon="@drawable/tricycle"
+            android:title="@string/tricycle_keke" />
+
+        <item
+            android:id="@+id/mechanicService"
+            android:icon="@drawable/mechanic"
+            android:title="@string/mechanic" />
+        <item
+            android:id="@+id/plummingService"
+            android:icon="@drawable/pipeline"
+            android:title="@string/plumbing" />
+        <item
+            android:id="@+id/carpentryService"
+            android:icon="@drawable/saw"
+            android:title="@string/carpenter" />
+        <item
+            android:id="@+id/lawerService"
+            android:icon="@drawable/lawyer"
+            android:title="@string/lawyer" />
+        <item
+            android:id="@+id/barberService"
+            android:icon="@drawable/barber"
+            android:title="@string/barber" />
+        <item
+            android:id="@+id/hairService"
+            android:icon="@drawable/hairdryer"
+            android:title="Hair Specialist" />
+
+    </group>
+
     <item
         android:id="@+id/logout"
         android:icon="@drawable/logout"
