@@ -63,7 +63,7 @@ public class Signin extends AppCompatActivity implements
             Toast.makeText(Signin.this, "Please check your internet connection!", Toast.LENGTH_SHORT).show();
         }
 
-        setupFirebaseAuth();
+
         findViewById(R.id.sign_in_button).setOnClickListener(this);
         findViewById(R.id.register_button).setOnClickListener(this);
 
@@ -74,15 +74,16 @@ public class Signin extends AppCompatActivity implements
         ----------------------------- Firebase setup ---------------------------------
      */
     private void setupFirebaseAuth() {
-        Log.d(TAG, "setupFirebaseAuth: started.");
+
 
         mAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 FirebaseUser user = firebaseAuth.getCurrentUser();
+                Log.d(TAG, "onAuthStateChanged:?");
                 if (user != null) {
                     Log.d(TAG, "onAuthStateChanged:signed_in:" + user.getUid());
-                    Toast.makeText(Signin.this, "Authenticated with: " + user.getEmail(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(Signin.this, "Welcome: " + user.getEmail(), Toast.LENGTH_SHORT).show();
 
                     FirebaseFirestore db = FirebaseFirestore.getInstance();
                     FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
@@ -120,15 +121,10 @@ public class Signin extends AppCompatActivity implements
     protected void onStart() {
         super.onStart();
 
-        if(mAuthListener!=null){
-            FirebaseAuth.getInstance().addAuthStateListener(mAuthListener);
-        }else{
-
+        if (mAuthListener == null) {
             FirebaseApp.initializeApp(this);
-            FirebaseAuth.getInstance().addAuthStateListener(mAuthListener);
         }
-
-
+        FirebaseAuth.getInstance().addAuthStateListener(mAuthListener);
     }
 
     @Override
@@ -167,13 +163,13 @@ public class Signin extends AppCompatActivity implements
                 }
             });
         } else {
-            Toast.makeText(Signin.this, "You didn't fill in all the fields.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(Signin.this, "You need to fill in all the fields.", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void showDialog() {
         mProgressBar.setVisibility(View.VISIBLE);
-        Intent intent = new Intent(Signin.this,Request.class);
+        Intent intent = new Intent(Signin.this, MapActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
 

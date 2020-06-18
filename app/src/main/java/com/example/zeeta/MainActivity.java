@@ -1,11 +1,7 @@
 package com.example.zeeta;
 
-import android.Manifest;
-import android.app.ActivityManager;
-import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
@@ -14,17 +10,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
 import android.widget.Toast;
 
-import com.example.zeeta.services.LocationService;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.firebase.FirebaseApp;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity implements LocationListener {
@@ -58,39 +48,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.M)
-    protected void getLocation() {
-        if (isLocationEnabled(MainActivity.this)) {
-            locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-            criteria = new Criteria();
-            bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
-
-            //You can still do this if you like, you might get lucky:
-            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    Activity#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for Activity#requestPermissions for more details.
-                return;
-            }
-            Location location = locationManager.getLastKnownLocation(bestProvider);
-            if (location != null) {
-                Log.e("TAG", "GPS is on");
-                latitude = location.getLatitude();
-                longitude = location.getLongitude();
-
-            } else {
-                //This is what you need:
-                locationManager.requestLocationUpdates(bestProvider, 1000, 0, this);
-            }
-        } else {
-            //prompt user to enable location....
-            //.................
-        }
-    }
 
     private void secondInit() {
         FirebaseApp.initializeApp(this);
@@ -100,11 +57,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
 
-
-
     @Override
     public void onLocationChanged(Location location) {
-
         //Hey, a non null location! Sweet!
 
         //remove location callback:

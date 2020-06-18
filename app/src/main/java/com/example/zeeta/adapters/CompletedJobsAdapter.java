@@ -1,6 +1,7 @@
 package com.example.zeeta.adapters;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -39,6 +40,7 @@ public class CompletedJobsAdapter extends ArrayAdapter<CompletedJobs> {
         TextView nameTextView = (TextView) listItemView.findViewById(R.id.employeeName);
         nameTextView.setText("Name: " + jobsInfo.getName());
 
+        Log.d("...", "amountPaiddd" + jobsInfo.getAmountPaid());
 
         // Find the TextView in the list_item.xml layout with the ID version_name
         TextView jobType = (TextView) listItemView.findViewById(R.id.employeeJob);
@@ -49,10 +51,22 @@ public class CompletedJobsAdapter extends ArrayAdapter<CompletedJobs> {
         statusTxt.setText("Job Status: ");
 
         // Find the TextView in the list_item.xml layout with the ID version_name
+        TextView amountpaidTxt = (TextView) listItemView.findViewById(R.id.amountPaid);
+        amountpaidTxt.setText("Amount Paid:N");
+
+        // Find the TextView in the list_item.xml layout with the ID version_name
+        TextView amountpaidValue = (TextView) listItemView.findViewById(R.id.amountPaidValue);
+        amountpaidValue.setText("" + jobsInfo.getAmountPaid());
+
+        // Find the TextView in the list_item.xml layout with the ID version_name
         TextView jobStatus = (TextView) listItemView.findViewById(R.id.job_status);
         String status = jobsInfo.getStatus();
         if (status.equalsIgnoreCase("accepted")) {
             int colorStatus = ContextCompat.getColor(getContext(), R.color.orange1);
+            jobStatus.setText("" + jobsInfo.getStatus());
+            jobStatus.setTextColor(colorStatus);
+        } else if (status.equalsIgnoreCase("Closed")) {
+            int colorStatus = ContextCompat.getColor(getContext(), R.color.red1);
             jobStatus.setText("" + jobsInfo.getStatus());
             jobStatus.setTextColor(colorStatus);
         } else if (status.equalsIgnoreCase("Completed")) {

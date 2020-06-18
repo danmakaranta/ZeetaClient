@@ -6,7 +6,7 @@
 
     tools:context=".Signin">
 
-    <ScrollView
+    <LinearLayout
         android:id="@+id/login_form"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -39,41 +39,41 @@
                 android:inputType="textPassword"
                 android:maxLines="1" />
 
-            <Button
-                android:id="@+id/sign_in_button"
-                style="?android:textAppearanceSmall"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="30dp"
-                android:layout_marginStart="135dp"
-                android:layout_marginLeft="135dp"
-                android:text="@string/sign_in"
-                android:background="@drawable/custom_button"
-                android:textStyle="bold" />
 
             <RelativeLayout
                 android:id="@+id/relLayout1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
+                <Button
+                    android:id="@+id/sign_in_button"
+                    style="?android:textAppearanceSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:layout_marginTop="30dp"
+                    android:background="@drawable/custom_button"
+                    android:text="@string/sign_in"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/register_button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerHorizontal="true"
+                    android:layout_below="@id/sign_in_button"
                     android:layout_marginTop="20dp"
                     android:gravity="center"
-                    android:text="Register"
-                    android:textColor="@color/linkBlue"
-                    android:textSize="16sp" />
+                    android:text="Sign up"
+                    android:textSize="25sp"
+                    android:textStyle="bold" />
 
 
             </RelativeLayout>
 
         </LinearLayout>
 
-    </ScrollView>
+    </LinearLayout>
 
     <ProgressBar
         android:id="@+id/progressBar"

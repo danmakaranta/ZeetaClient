@@ -5,7 +5,7 @@ import com.google.firebase.Timestamp;
 public class CompletedJobs {
 
     private String name;
-    private Double amountPaid;
+    private double amountPaid;
     private Timestamp dateRendered;
     private String phoneNumber;
     private String job;
@@ -16,18 +16,21 @@ public class CompletedJobs {
     private Timestamp datecompleted;
 
 
-    public CompletedJobs(String name, Double amountPaid, Timestamp dateRendered, String phoneNumber) {
+    public CompletedJobs(String name, double amountPaid, Timestamp dateRendered, String phoneNumber) {
         this.name = name;
         this.amountPaid = amountPaid;
         this.dateRendered = dateRendered;
         this.phoneNumber = phoneNumber;
     }
 
-    public CompletedJobs(String name, Timestamp dateRendered, String job, String status) {
+    public CompletedJobs(String name, Timestamp dateRendered, String job, String status, String employeeID, String phoneNumber, double amountPaid) {
         this.name = name;
         this.dateRendered = dateRendered;
         this.job = job;
         this.status = status;
+        this.employeeID = employeeID;
+        this.phoneNumber = phoneNumber;
+        this.amountPaid = amountPaid;
     }
 
     public CompletedJobs(String name, Timestamp dateRendered, String job, String status, String employeeID, String phoneNumber) {
@@ -100,7 +103,7 @@ public class CompletedJobs {
         return amountPaid;
     }
 
-    public void setAmountPaid(Double amountPaid) {
+    public void setAmountPaid(double amountPaid) {
         this.amountPaid = amountPaid;
     }
 

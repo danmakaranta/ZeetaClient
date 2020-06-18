@@ -6,6 +6,7 @@ import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.LoaderManager;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -25,6 +26,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Html;
@@ -62,7 +64,6 @@ import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.places.AutocompletePrediction;
 import com.google.android.gms.location.places.GeoDataClient;
 import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.PlaceBufferResponse;
@@ -82,16 +83,15 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RuntimeRemoteException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -108,6 +108,9 @@ import com.google.maps.internal.PolylineEncoding;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.Distance;
+import com.squareup.picasso.Picasso;
+import com.treebo.internetavailabilitychecker.InternetAvailabilityChecker;
+import com.treebo.internetavailabilitychecker.InternetConnectivityListener;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -126,24 +129,35 @@ import androidx.fragment.app.FragmentActivity;
 import static com.example.zeeta.util.Constants.PERMISSIONS_REQUEST_ENABLE_GPS;
 
 
-public class MapActivity extends FragmentActivity implements LoaderManager.LoaderCallbacks<String>, OnMapReadyCallback, LocationListener, GoogleMap.OnInfoWindowClickListener, GoogleMap.OnPolylineClickListener, GoogleApiClient.OnConnectionFailedListener {
+public class MapActivity extends FragmentActivity implements LoaderManager.LoaderCallbacks<String>, OnMapReadyCallback,
+        LocationListener, GoogleMap.OnInfoWindowClickListener, GoogleMap.OnPolylineClickListener, GoogleApiClient.OnConnectionFailedListener,
+        InternetConnectivityListener {
 
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
     private static final String TAG = "MapActivity";
     private static final int ERROR_DIALOG_REQUEST = 9001;
     private static final String FINE_LOCATION = Manifest.permission.ACCESS_FINE_LOCATION;
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final int LOCATION_PERMISSIONS_REQUEST_CODE = 1234;
-    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
-    private static final float DEFAULT_ZOOM = 17f;
-    public static final int OPERATION_SEARCH_LOADER = 22;
-    public static final String OPERATION_URL_EXTRA = "price_estimate";
+    private static final float DEFAULT_ZOOM = 15f;
+    private static final LatLngBounds BOUNDS_GREATER_SYDNEY = new LatLngBounds(
+            new LatLng(-34.041458, 150.790100), new LatLng(-33.682247, 151.383362));
+    public LocationManager locationManager;
+    public Criteria criteria;
+    public String bestProvider;
+    /**
+     * GeoDataClient wraps our service connection to Google Play services and provides access
+     * to the Google Places API for Android.
+     */
+    protected GeoDataClient mGeoDataClient;
     AutoCompleteTextView pickET;
     AutoCompleteTextView destinationET;
     Location currentLocation;
     Intent serviceIntent;
-    public LocationManager locationManager;
     //firestore access for cloud storage
     FirebaseStorage storage = FirebaseStorage.getInstance();
+    DocumentReference clientRequest;
+    boolean markerTracker;
     private Boolean serviceProviderAcceptanceStatus;
     private long hourlyRate = 0;
     private String serviceRendered = "";
@@ -166,14 +180,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private GeoApiContext mGeoApiContext;
     private GeoApiContext mDirectionApi;
     private Handler mHandler = new Handler();
-    public Criteria criteria;
-    private static final LatLngBounds BOUNDS_GREATER_SYDNEY = new LatLngBounds(
-            new LatLng(-34.041458, 150.790100), new LatLng(-33.682247, 151.383362));
-    /**
-     * GeoDataClient wraps our service connection to Google Play services and provides access
-     * to the Google Places API for Android.
-     */
-    protected GeoDataClient mGeoDataClient;
     //vars
     private @ServerTimestamp
     Date clientTimeStamp, staffTimeStamp;
@@ -182,22 +188,17 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private double RADIUS;
     private boolean serviceFound;
     private ArrayList<StaffFound> keysFound;
-    private GeoQuery geoQuery;
     private DocumentReference staffTime;
     private DocumentReference acceptance;
     private Marker mSelectedMarker = null;
     private ArrayList<String> keyIDs;
     private DatabaseReference mdatabaseRef;
-    public String bestProvider;
-    DocumentReference clientRequest;
     private int tyingNum;
     //progress bars for geolocation
     private ProgressBar pickUpP;
     private String serviceProviderPhone;
-
     private GeoPoint serviceProviderLocation;
     private GeoPoint pickupLocation;
-
     private GeoPoint destination;
     private ProgressBar destinationPBar;
     // custom driverDialog
@@ -205,7 +206,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private TextView rideEst;
     private LoaderManager loaderManager;
     private int rideEstimateAmount;
-
     private double priceEstimate = 0.0;
     private boolean pickupFirstClick = false;
     private boolean destinationFound = false;
@@ -227,37 +227,13 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private String customerName = "";
     private String destinationText;
     private boolean navOpened = false;
-
     private Button cancelRequestBtn;
     private DocumentReference acceptanceUpdate;
     private DocumentReference clientRideRequest;
     private DocumentReference customerRequest;
-
-    //for adding a custom marker,
-    private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId) {
-
-        Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
-        vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
-        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        vectorDrawable.draw(canvas);
-        return BitmapDescriptorFactory.fromBitmap(bitmap);
-    }
-
+    private NavigationView navigationView;
+    private ProgressDialog requestProgressDialog;
     private Bitmap my_image;
-
-    public static String getLocalityName(Context context, double latitude, double longitude) throws IOException {
-        Geocoder geocoder = new Geocoder(context, Locale.getDefault());
-        List<Address> addresses = null;
-
-        addresses = geocoder.getFromLocation(latitude, longitude, 1);
-        if (addresses.size() > 0) {
-            Log.d("locality", "State of operation " + addresses.get(0).getLocality());
-        }
-        return addresses.get(0).getLocality();
-
-    }
-
     /**
      * Callback for results from a Places Geo Data Client query that shows the first place result in
      * the details view on screen.
@@ -298,6 +274,41 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         }
     };
 
+    private String requestedService;
+    private InternetAvailabilityChecker mInternetAvailabilityChecker;
+
+    public static String getLocalityName(Context context, double latitude, double longitude) throws IOException {
+        Geocoder geocoder = new Geocoder(context, Locale.getDefault());
+        List<Address> addresses = null;
+
+        addresses = geocoder.getFromLocation(latitude, longitude, 1);
+        if (addresses.size() > 0) {
+            Log.d("locality", "State of operation " + addresses.get(0).getLocality());
+        }
+        return addresses.get(0).getLocality();
+
+    }
+
+    private static Spanned formatPlaceDetails(Resources res, CharSequence name, String id,
+                                              CharSequence address, CharSequence phoneNumber, Uri websiteUri) {
+        Log.e(TAG, res.getString(R.string.place_details, name, id, address, phoneNumber,
+                websiteUri));
+        return Html.fromHtml(res.getString(R.string.place_details, name, id, address, phoneNumber,
+                websiteUri));
+
+    }
+
+    //for adding a custom marker,
+    private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId) {
+
+        Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
+        vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
+        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        vectorDrawable.draw(canvas);
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
+    }
+
     private void getLastKnownLocation() {
         Log.d(TAG, "getLastKnownLocation: called.");
 
@@ -321,8 +332,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         });
 
     }
-
-    boolean markerTracker;
 
     private void getWorkerDetails() {
 
@@ -348,43 +357,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         }
 
     }
-
-
-    /**
-     * Listener that handles selections from suggestions from the AutoCompleteTextView that
-     * displays Place suggestions.
-     * Gets the place id of the selected item and issues a request to the Places Geo Data Client
-     * to retrieve more details about the place.
-     *
-     * @see GeoDataClient#getPlaceById(String...)
-     */
-    private AdapterView.OnItemClickListener mAutocompleteClickListener
-            = new AdapterView.OnItemClickListener() {
-        @Override
-        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-            /*
-             Retrieve the place ID of the selected item from the Adapter.
-             The adapter stores each Place suggestion in a AutocompletePrediction from which we
-             read the place ID and title.
-              */
-            final AutocompletePrediction item = mAdapter.getItem(position);
-            final String placeId = item.getPlaceId();
-            final CharSequence primaryText = item.getPrimaryText(null);
-
-            Log.i(TAG, "Autocomplete item selected: " + primaryText);
-
-            /*
-             Issue a request to the Places Geo Data Client to retrieve a Place object with
-             additional details about the place.
-              */
-            Task<PlaceBufferResponse> placeResult = mGeoDataClient.getPlaceById(placeId);
-            placeResult.addOnCompleteListener(mUpdatePlaceDetailsCallback);
-
-            Toast.makeText(getApplicationContext(), "Clicked: " + primaryText,
-                    Toast.LENGTH_SHORT).show();
-            Log.i(TAG, "Called getPlaceById to get Place details for " + placeId);
-        }
-    };
 
     // reset all variables for service
     @Override
@@ -515,17 +487,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     }
 
-    private static Spanned formatPlaceDetails(Resources res, CharSequence name, String id,
-                                              CharSequence address, CharSequence phoneNumber, Uri websiteUri) {
-        Log.e(TAG, res.getString(R.string.place_details, name, id, address, phoneNumber,
-                websiteUri));
-        return Html.fromHtml(res.getString(R.string.place_details, name, id, address, phoneNumber,
-                websiteUri));
-
-    }
-
-    private String requestedService;
-
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
@@ -577,6 +538,12 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         });
 
         mMap.setOnInfoWindowClickListener(this);
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                navigationView.setVisibility(View.INVISIBLE);
+            }
+        });
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         new getDeviceLocationAsync().execute();
@@ -762,11 +729,17 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         checkLocationPermission();
         new getDeviceLocationAsync().execute();
         updateCustomerDetails();
+        requestProgressDialog = new ProgressDialog(this);
+        requestProgressDialog.setMessage("Sending Request....");
         RADIUS = 7;
         serviceFound = false;
         keyIDs = new ArrayList();
         keysFound = new ArrayList<StaffFound>();
         serviceProviderAcceptanceStatus = false;
+
+        InternetAvailabilityChecker.init(this);
+        mInternetAvailabilityChecker = InternetAvailabilityChecker.getInstance();
+        mInternetAvailabilityChecker.addInternetConnectivityListener(this);
 
 
         // Construct a GeoDataClient for the Google Places API for Android.
@@ -829,10 +802,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             }
         });
 
-        NavigationView navigationView = findViewById(R.id.drawer_navigation);
-
-        //navigationView.setVisibility(View.GONE);
-
+        navigationView = findViewById(R.id.drawer_navigation);
 
         //initialize and assign variables for the bottom navigation
         BottomNavigationView bottomNavigationView = findViewById(R.id.nav_view);
@@ -851,10 +821,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         startActivity(new Intent(getApplicationContext(), Jobs.class).putExtra("RequestedServices", selectedServices));
                         overridePendingTransition(0, 0);
                         return true;
-                    case R.id.dashboard_button:
-                        startActivity(new Intent(getApplicationContext(), DashBoard.class).putExtra("RequestedServices", selectedServices));
-                        overridePendingTransition(0, 0);
-                        return true;
                     case R.id.services_list:
                         if (navOpened) {
                             navOpened = false;
@@ -866,7 +832,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                             // bottomNavigationView.setSelectedItemId(R.id.services_list);
                         }
                         return true;
-
                 }
                 return false;
             }
@@ -943,6 +908,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             public void onComplete(@NonNull Task<android.location.Location> task) {
                 if (task.isSuccessful()) {
                     Location location = task.getResult();
+                    GeoQuery geoQuery;
+
                     if (location != null) {
                         geoQuery = geoFire.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
 
@@ -956,8 +923,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         @Override
                         public void onKeyEntered(String key, GeoLocation location) {
 
-                            String tempProf = "key";
-                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), tempProf));
+                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
                             if (engaged(key)) {
 
                             } else {
@@ -965,11 +931,13 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                     String markerTitle;
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                         markerTitle = requestedService + " " + timeApart(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(location.latitude, location.longitude)) + "minutes away";
-                                        try {// nothing more but to slow down execution a bit to get results before proceeding
-                                            Thread.sleep(2000);
-                                        } catch (InterruptedException excp) {
-                                            excp.printStackTrace();
-                                        }
+                                        Handler handler = new Handler();
+                                        handler.postDelayed(new Runnable() {
+                                            @Override
+                                            public void run() {
+
+                                            }
+                                        }, 3000);
                                     } else {
                                         markerTitle = requestedService + " ...minutes away!";
                                     }
@@ -1032,7 +1000,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         public void onGeoQueryReady() {
                             Log.d("OnGeoQueryReady", "OnGeoQueryReady called");
 
-                            if (tyingNum <= 20) {
+                            if (tyingNum <= 5) {
                                 Log.d("Counter for GeoQuery", "Counting how many times geoQuery is called: " + tyingNum);
                                 getClientRequest();
                                 tyingNum++;
@@ -1053,17 +1021,22 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     private void executeService(String service) {
 
+        serv = null;
         serv = "" + service;
         requestedService = service;
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference(locality).child(serv);
+        DatabaseReference ref = null;
+        ref = FirebaseDatabase.getInstance().getReference(locality).child(service);
+        geoFire = null;
         geoFire = new GeoFire(ref);
         serviceFound = false;
         RADIUS = 10;
-        try {// nothing more but to slow down execution a bit to get results before proceeding
-            Thread.sleep(2000);
-        } catch (InterruptedException excp) {
-            excp.printStackTrace();
-        }
+        Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        }, 2000);
         getClientRequest(); //get the service, if found, pin it to map with custom marker
 
     }
@@ -1434,6 +1407,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         DocumentReference clientRequest = FirebaseFirestore.getInstance()
                 .collection("Users")
                 .document(id).collection("Request").document("ongoing");
+        requestProgressDialog.show();
 
         RequestInformation requestData = new RequestInformation(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), FirebaseAuth.getInstance().getUid(), "Awaiting");
 
@@ -1441,6 +1415,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
+                    requestProgressDialog.dismiss();
                     Toast.makeText(getApplicationContext(), "Your request has been sent, please hold on!", Toast.LENGTH_LONG).show();
                     listenForUpdate(id);
                     Log.e(TAG, "sendClientRequest: customer request sent!");
@@ -1543,11 +1518,12 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         boolean cancelRide = documentSnapshot.getBoolean("cancelRide");
                                         boolean endedRide = documentSnapshot.getBoolean("ended");
 
-                                        try {// nothing more but to slow down execution a bit to get results before proceeding
-                                            Thread.sleep(2000);
-                                        } catch (InterruptedException excp) {
-                                            excp.printStackTrace();
-                                        }
+                                        Handler handler = new Handler();
+                                        handler.postDelayed(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                            }
+                                        }, 2000);
 
                                         if (accepted != null) {
                                             if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp) {
@@ -1700,15 +1676,19 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         // custom dialog
         final Dialog dialog = new Dialog(MapActivity.this);
-        ImageView imageView = findViewById(R.id.serviceProviderPic);
 
-        mdatabaseRef = FirebaseDatabase.getInstance().getReference(id);
         // Create a storage reference from our app
-        StorageReference storageRef = storage.getReference();
+        StorageReference mStorage = FirebaseStorage.getInstance().getReference().child("paicOqj8BqN76qlKXhv56aIWb9k2.jpg");
 
-        // Create a reference with an initial file path and name
-        StorageReference pathReference = storageRef.child(id + ".jpg");
-
+        final Uri[] downloadUri = new Uri[1];
+        mStorage.getDownloadUrl().addOnCompleteListener(new OnCompleteListener<Uri>() {
+            @Override
+            public void onComplete(@NonNull Task<Uri> task) {
+                if (task.isSuccessful()) {
+                    downloadUri[0] = task.getResult();
+                }
+            }
+        });
 
         DocumentReference serviceProviderDetails = null;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
@@ -1761,17 +1741,25 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     textRating.setText("Rating: " + rating);
                     TextView hourlyTxt = dialog.findViewById(R.id.serviceProviderRate);
                     hourlyTxt.setText("Hourly Rate: N" + hourlyRate);
-
-                    mdatabaseRef.addValueEventListener(new ValueEventListener() {
+                    ImageView closeDialog = dialog.findViewById(R.id.close_x);
+                    closeDialog.setOnClickListener(new View.OnClickListener() {
                         @Override
-                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-
-                            dataSnapshot.getValue();
+                        public void onClick(View v) {
+                            dialog.dismiss();
                         }
+                    });
 
+                    StorageReference storageReference = FirebaseStorage.getInstance().getReference().child("serviceproviderpictures");
+                    storageReference.child(id + ".jpg").getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
                         @Override
-                        public void onCancelled(@NonNull DatabaseError databaseError) {
-
+                        public void onSuccess(Uri uri) {
+                            // Got the download URL for 'profile pic'
+                            Picasso.with(dialog.getContext()).load(uri).fit().into(pic);
+                        }
+                    }).addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception exception) {
+                            // Handle any errors
                         }
                     });
 
@@ -1804,7 +1792,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             }
 
         });
-        mdatabaseRef.removeValue();
 
     }
 
@@ -2212,6 +2199,39 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     }
 
+    @Override
+    public void onInternetConnectivityChanged(boolean isConnected) {
+        AlertDialog alertDialog;
+        if (!isConnected) {
+            alertDialog = new AlertDialog.Builder(this).create();
+            alertDialog.setTitle("Connectivity");
+            alertDialog.setMessage("Please check that you are connected to the internet");
+            alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
+                    new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                        }
+                    });
+            alertDialog.show();
+        } else {
+            alertDialog = new AlertDialog.Builder(this).create();
+            alertDialog.setMessage("Internet connection reestablished!");
+
+            new CountDownTimer(1000, 1000) {
+                @Override
+                public void onTick(long millisUntilFinished) {
+                    alertDialog.show();
+                }
+
+                @Override
+                public void onFinish() {
+                    alertDialog.dismiss();
+                }
+            }.start();
+
+        }
+    }
+
     public class getDeviceLocationAsync extends AsyncTask<String, String, String> {
 
 
@@ -2262,7 +2282,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                 Location location = task.getResult();
                                 currentLocation = location;
                                 try {
-
                                     //locality = getLocality();
                                     locality = getLocalityName(MapActivity.this, location.getLatitude(), location.getLongitude());
 
