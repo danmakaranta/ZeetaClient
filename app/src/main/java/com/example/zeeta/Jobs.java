@@ -88,7 +88,6 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                         return true;
                     case R.id.home_button:
                         startActivity(new Intent(getApplicationContext(), MapActivity.class));
-                        overridePendingTransition(0, 0);
                         return true;
                     case R.id.services_list:
                         startActivity(new Intent(getApplicationContext(), MapActivity.class));

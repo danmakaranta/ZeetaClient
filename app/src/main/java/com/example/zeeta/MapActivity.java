@@ -52,7 +52,6 @@ import com.example.zeeta.data.GeneralJobData;
 import com.example.zeeta.data.StaffFound;
 import com.example.zeeta.models.PolylineData;
 import com.example.zeeta.models.RequestInformation;
-import com.example.zeeta.models.User;
 import com.example.zeeta.models.WorkerLocation;
 import com.example.zeeta.services.LocationService;
 import com.firebase.geofire.GeoFire;
@@ -139,7 +138,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private static final String FINE_LOCATION = Manifest.permission.ACCESS_FINE_LOCATION;
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final int LOCATION_PERMISSIONS_REQUEST_CODE = 1234;
-    private static final float DEFAULT_ZOOM = 15f;
+    private static final float DEFAULT_ZOOM = 14f;
     private static final LatLngBounds BOUNDS_GREATER_SYDNEY = new LatLngBounds(
             new LatLng(-34.041458, 150.790100), new LatLng(-33.682247, 151.383362));
     public LocationManager locationManager;
@@ -191,7 +190,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private DocumentReference staffTime;
     private DocumentReference acceptance;
     private Marker mSelectedMarker = null;
-    private ArrayList<String> keyIDs;
+    private ArrayList keyIDs;
     private DatabaseReference mdatabaseRef;
     private int tyingNum;
     //progress bars for geolocation
@@ -233,7 +232,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private DocumentReference customerRequest;
     private NavigationView navigationView;
     private ProgressDialog requestProgressDialog;
+    private ProgressDialog nemaProgressDialog;
     private Bitmap my_image;
+    private ProgressDialog loadingProgressDialog;
     /**
      * Callback for results from a Places Geo Data Client query that shows the first place result in
      * the details view on screen.
@@ -276,6 +277,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     private String requestedService;
     private InternetAvailabilityChecker mInternetAvailabilityChecker;
+    private int lookingForTaxi = 0;
+    private GeoQuery geoQueryTaxi;
+    private GeoQuery geoQueryMechanic;
 
     public static String getLocalityName(Context context, double latitude, double longitude) throws IOException {
         Geocoder geocoder = new Geocoder(context, Locale.getDefault());
@@ -333,30 +337,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     }
 
-    private void getWorkerDetails() {
-
-        if (mWorkerLocation == null) {
-            mWorkerLocation = new WorkerLocation();
-            DocumentReference userRef = mDb.collection("Worker location")
-                    .document(FirebaseAuth.getInstance().getUid());
-
-            userRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-                @Override
-                public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                    if (task.isSuccessful()) {
-                        Log.d(TAG, "onComplete: successfully set the user client.");
-                        User user = task.getResult().toObject(User.class);
-                        mWorkerLocation.setUser(user);
-                        ((UserClient) getApplicationContext()).setUser(user);
-                        getLastKnownLocation();
-                    }
-                }
-            });
-        } else {
-            getLastKnownLocation();
-        }
-
-    }
 
     // reset all variables for service
     @Override
@@ -730,7 +710,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         new getDeviceLocationAsync().execute();
         updateCustomerDetails();
         requestProgressDialog = new ProgressDialog(this);
+        nemaProgressDialog = new ProgressDialog(this);
         requestProgressDialog.setMessage("Sending Request....");
+        nemaProgressDialog.setMessage("Searching.....");
         RADIUS = 7;
         serviceFound = false;
         keyIDs = new ArrayList();
@@ -740,7 +722,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         InternetAvailabilityChecker.init(this);
         mInternetAvailabilityChecker = InternetAvailabilityChecker.getInstance();
         mInternetAvailabilityChecker.addInternetConnectivityListener(this);
-
 
         // Construct a GeoDataClient for the Google Places API for Android.
         mGeoDataClient = Places.getGeoDataClient(this, null);
@@ -760,6 +741,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         setContentView(R.layout.activity_map);
         selectedServiceData = new ArrayList();
+
 
         serviceIntent = new Intent(MapActivity.this, LocationService.class);
 
@@ -819,7 +801,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         return true;
                     case R.id.jobs_button:
                         startActivity(new Intent(getApplicationContext(), Jobs.class).putExtra("RequestedServices", selectedServices));
-                        overridePendingTransition(0, 0);
                         return true;
                     case R.id.services_list:
                         if (navOpened) {
@@ -843,19 +824,23 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 int itemSelected = item.getItemId();
                 switch (itemSelected) {
                     case R.id.taxiService:
-                        executeService("Taxi");
+                        nemaProgressDialog.show();
+                        getTaxi();
                         navigationView.setVisibility(View.GONE);
                         return true;
                     case R.id.tricycleService:
+                        nemaProgressDialog.show();
                         executeService("Tricycle");
                         navigationView.setVisibility(View.GONE);
                         return true;
                     case R.id.lawerService:
+                        nemaProgressDialog.show();
                         executeService("Lawyer");
                         navigationView.setVisibility(View.GONE);
                         return true;
                     case R.id.mechanicService:
-                        executeService("Mechanic");
+                        nemaProgressDialog.show();
+                        getMechanic();
                         navigationView.setVisibility(View.GONE);
                         return true;
                     case R.id.logout:
@@ -1030,16 +1015,250 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         geoFire = new GeoFire(ref);
         serviceFound = false;
         RADIUS = 10;
-        Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
 
-            }
-        }, 2000);
         getClientRequest(); //get the service, if found, pin it to map with custom marker
 
     }
+
+    private void getTaxi() {
+
+        DatabaseReference refTaxi = null;
+        refTaxi = FirebaseDatabase.getInstance().getReference(locality).child("Taxi");
+        GeoFire geoFireTaxi = null;
+        geoFireTaxi = new GeoFire(refTaxi);
+        RADIUS = 5;
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        GeoFire finalGeoFireTaxi = geoFireTaxi;
+        mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
+            @Override
+            public void onComplete(@NonNull Task<android.location.Location> task) {
+                if (task.isSuccessful()) {
+                    Location location = task.getResult();
+
+                    if (location != null) {
+                        geoQueryTaxi = finalGeoFireTaxi.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
+
+                    } else {
+                        geoQueryTaxi = finalGeoFireTaxi.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
+                    }
+
+
+                    geoQueryTaxi.addGeoQueryEventListener(new GeoQueryEventListener() {
+
+                        @Override
+                        public void onKeyEntered(String key, GeoLocation location) {
+
+                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
+                            if (engaged(key)) {
+
+                            } else {
+                                if (markerList.size() <= 0) {
+                                    String markerTitle;
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        String temp = " " + timeApart(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(location.latitude, location.longitude)) + " minutes away";
+
+                                        try {// nothing more but to slow down execution a bit to get results before proceeding
+                                            Thread.sleep(2000);
+                                        } catch (InterruptedException excp) {
+                                            excp.printStackTrace();
+                                        }
+                                        markerTitle = "Taxi" + temp;
+                                    } else {
+                                        markerTitle = "Taxi" + " ...minutes away!";
+                                    }
+                                    nemaProgressDialog.dismiss();
+                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(markerTitle));
+
+                                    staffMarker.setTag(key);
+                                    //choose icon type for transport or other service
+                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
+                                    staffMarker.setSnippet("Taxi");
+                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");// don't forget to remove later
+                                    markerList.add(staffMarker);
+                                    updateMarkersRunnable();
+                                    staffMarker.showInfoWindow();
+                                } else {
+                                    if (!markerContains(key)) {
+                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
+                                        staffMarker.setTag(key);
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
+                                        staffMarker.setSnippet("Taxi");
+                                        moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
+                                        markerList.add(staffMarker);
+                                        staffMarker.showInfoWindow();
+
+                                    }
+                                }
+                            }
+
+                        }
+
+                        @Override
+                        public void onKeyExited(String key) {
+                            for (int i = 0; i < markerList.size(); i++) {
+                                if (markerList.get(i).getTag() != null) {
+                                    if (Objects.requireNonNull(markerList.get(i).getTag()).toString().equalsIgnoreCase(key)) {
+                                        markerList.get(i).remove();
+                                    }
+                                }
+
+                            }
+
+                        }
+
+                        @Override
+                        public void onKeyMoved(String key, GeoLocation location) {
+
+                        }
+
+                        @Override
+                        public void onGeoQueryReady() {
+                            Log.d("OnGeoQueryReady", "OnGeoQueryReady called");
+
+                            if (lookingForTaxi <= 5) {
+                                getTaxi();
+                                lookingForTaxi++;
+                            }
+
+                        }
+
+                        @Override
+                        public void onGeoQueryError(DatabaseError error) {
+
+                        }
+                    });
+
+                }
+            }
+        });
+    }
+
+    private void getMechanic() {
+
+        DatabaseReference refMechanic = null;
+        refMechanic = FirebaseDatabase.getInstance().getReference(locality).child("Mechanic");
+        GeoFire geoFireMechanic = null;
+        geoFireMechanic = new GeoFire(refMechanic);
+        RADIUS = 5;
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        GeoFire finalGeoFireMechanic = geoFireMechanic;
+        mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
+            @Override
+            public void onComplete(@NonNull Task<android.location.Location> task) {
+                if (task.isSuccessful()) {
+                    Location location = task.getResult();
+
+                    if (location != null) {
+                        geoQueryMechanic = finalGeoFireMechanic.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
+
+                    } else {
+                        geoQueryMechanic = finalGeoFireMechanic.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
+                    }
+
+
+                    geoQueryMechanic.addGeoQueryEventListener(new GeoQueryEventListener() {
+
+                        @Override
+                        public void onKeyEntered(String key, GeoLocation location) {
+
+                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
+                            if (engaged(key)) {
+
+                            } else {
+                                if (markerList.size() <= 0) {
+                                    String markerTitle;
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        String temp = " " + timeApart(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(location.latitude, location.longitude)) + " minutes away";
+
+                                        try {// nothing more but to slow down execution a bit to get results before proceeding
+                                            Thread.sleep(2000);
+                                        } catch (InterruptedException excp) {
+                                            excp.printStackTrace();
+                                        }
+                                        markerTitle = "Mechanic" + temp;
+                                    } else {
+                                        markerTitle = "Mechanic, 5 minutes away!";
+                                    }
+                                    nemaProgressDialog.dismiss();
+                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(markerTitle));
+
+                                    staffMarker.setTag(key);
+                                    //choose icon type for transport or other service
+                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.mechanic));
+                                    staffMarker.setSnippet("Mechanic");
+                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");// don't forget to remove later
+                                    markerList.add(staffMarker);
+
+                                    staffMarker.showInfoWindow();
+                                } else {
+                                    if (!markerContains(key)) {
+                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
+                                        staffMarker.setTag(key);
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.mechanic));
+                                        staffMarker.setSnippet("Mechanic");
+                                        moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
+                                        markerList.add(staffMarker);
+                                        staffMarker.showInfoWindow();
+                                    }
+                                }
+                            }
+
+                        }
+
+                        @Override
+                        public void onKeyExited(String key) {
+                            for (int i = 0; i < markerList.size(); i++) {
+                                if (markerList.get(i).getTag() != null) {
+                                    if (Objects.requireNonNull(markerList.get(i).getTag()).toString().equalsIgnoreCase(key)) {
+                                        markerList.get(i).remove();
+                                    }
+                                }
+
+                            }
+
+                        }
+
+                        @Override
+                        public void onKeyMoved(String key, GeoLocation location) {
+
+                        }
+
+                        @Override
+                        public void onGeoQueryReady() {
+                            for (int i = 0; i <= 3; i++) {
+                                getMechanic();
+                            }
+                        }
+
+                        @Override
+                        public void onGeoQueryError(DatabaseError error) {
+
+                        }
+                    });
+
+                }
+            }
+        });
+    }
+
 
     private void getLocationPermission() {
         String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
@@ -1108,10 +1327,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     public void onPolylineClick(Polyline polyline) {
 
         int index = 0;
-        for(PolylineData polylineData: mPolyLinesData){
+        for (PolylineData polylineData : mPolyLinesData) {
             index++;
             Log.d(TAG, "onPolylineClick: toString: " + polylineData.toString());
-            if(polyline.getId().equals(polylineData.getPolyline().getId())){
+            if (polyline.getId().equals(polylineData.getPolyline().getId())) {
 
                 polylineData.getPolyline().setColor(ContextCompat.getColor(getApplicationContext(), R.color.blue2));
                 polylineData.getPolyline().setZIndex(1);
@@ -1130,8 +1349,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 mTripMarkers.add(marker);
 
                 //marker.showInfoWindow();
-            }
-            else{
+            } else {
                 polylineData.getPolyline().setColor(R.color.darkGrey);
                 polylineData.getPolyline().setZIndex(0);
             }
@@ -1187,8 +1405,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     }
                     Log.d(TAG, "onRequestPermission: permission granted");
                     mLocationPermissionGranted = true;
-                    //initialize our map
-                    // getDeviceLocation();
+
                     initMap();
                 }
             }
@@ -1433,6 +1650,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .collection("Users")
                 .document(id).collection("Request").document("ongoing");
         final boolean[] notifyAcceptance = {false};
+
         acceptanceUpdate.addSnapshotListener(new EventListener<DocumentSnapshot>() {
             @Override
             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
@@ -1441,6 +1659,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     Log.w(TAG, "Listen failed.", e);
                     return;
                 }
+
                 if (documentSnapshot != null && documentSnapshot.exists()) {
                     Log.d(TAG, "Current data: " + documentSnapshot.getData());
                     if (documentSnapshot.getString("accepted").equals("Accepted") && !notifyAcceptance[0]) {
@@ -1827,11 +2046,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     public void onInfoWindowClick(Marker marker) {
 
         try {
-            if (serv.equalsIgnoreCase("Taxi") || serv.equalsIgnoreCase("Trycycle(Keke)")) {
-
-                getZeetaDriver(marker.getTag().toString());
+            String servType = marker.getSnippet();
+            if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
+                getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString());
             } else {
-                getServiceProviderDetails(marker.getTag().toString());
+                getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString());
             }
 
         } catch (IOException e) {
@@ -1867,12 +2086,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     }
                 });
 
-        /*//reset the variables for next request
-        jobData = null;
-        serviceProviderPhone = null;
-        getServiceProviderName = null;
-        serviceRendered = "";
-        hourlyRate = 0;*/
 
     }
 
@@ -1986,6 +2199,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                             geolocate("pickup");
                         }
                     });
+                    destinationET.requestFocus();
 
                     destinationET.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                         @Override
@@ -2094,7 +2308,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 activity.getCurrentFocus().getWindowToken(), 0);
     }*/
 
-    public boolean checkLocationPermission() {
+    public void checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -2121,27 +2335,21 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         .create()
                         .show();
 
-
             } else {
                 // No explanation needed, we can request the permission.
                 ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                         MY_PERMISSIONS_REQUEST_LOCATION);
             }
-            return false;
-        } else {
-            return true;
         }
     }
 
     public int getPriceInteger(String s) {
         int val1;
-        String whole = s;
         StringBuilder sb = new StringBuilder("");
         for (int i = 1; i < s.length(); i++) {
             sb.append(s.charAt(i));
         }
-        Log.d("----", "New String: " + sb.toString());
         val1 = Integer.parseInt(sb.toString());
 
         return val1;
@@ -2201,31 +2409,32 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     @Override
     public void onInternetConnectivityChanged(boolean isConnected) {
-        AlertDialog alertDialog;
+        AlertDialog internetAlertDialog;
         if (!isConnected) {
-            alertDialog = new AlertDialog.Builder(this).create();
-            alertDialog.setTitle("Connectivity");
-            alertDialog.setMessage("Please check that you are connected to the internet");
-            alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
+            internetAlertDialog = new AlertDialog.Builder(this).create();
+            internetAlertDialog.setTitle("Connectivity");
+            internetAlertDialog.setMessage("Please check that you are connected to the internet");
+            internetAlertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
                     new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int which) {
                             dialog.dismiss();
                         }
                     });
-            alertDialog.show();
+            internetAlertDialog.show();
         } else {
-            alertDialog = new AlertDialog.Builder(this).create();
-            alertDialog.setMessage("Internet connection reestablished!");
+            internetAlertDialog = new AlertDialog.Builder(this).create();
+            internetAlertDialog.setMessage("Internet connection reestablished!");
+            internetAlertDialog.setInverseBackgroundForced(true);
 
             new CountDownTimer(1000, 1000) {
                 @Override
                 public void onTick(long millisUntilFinished) {
-                    alertDialog.show();
+                    // internetAlertDialog.show();
                 }
 
                 @Override
                 public void onFinish() {
-                    alertDialog.dismiss();
+                    //internetAlertDialog.dismiss();
                 }
             }.start();
 
@@ -2233,10 +2442,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     public class getDeviceLocationAsync extends AsyncTask<String, String, String> {
-
-
-        public double lati = 0.0;
-        public double longi = 0.0;
 
         public LocationManager mLocationManager;
 
@@ -2251,8 +2456,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             //move camera to current location on map
             if (currentLocation != null) {
                 moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), DEFAULT_ZOOM, "My location");
-
-
             }
 
         }
@@ -2278,9 +2481,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
                         @Override
                         public void onComplete(@NonNull Task<android.location.Location> task) {
-                            if (task.isSuccessful()) {
+                            if (task.isComplete()) {
                                 Location location = task.getResult();
                                 currentLocation = location;
+
                                 try {
                                     //locality = getLocality();
                                     locality = getLocalityName(MapActivity.this, location.getLatitude(), location.getLongitude());
@@ -2298,7 +2502,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
                             }
                         }
-
                     });
                 }
             } catch (SecurityException e) {
@@ -2308,6 +2511,5 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             return null;
         }
     }
-
 
 }

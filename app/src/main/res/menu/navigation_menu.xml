@@ -35,14 +35,14 @@
         <item
             android:id="@+id/hairService"
             android:icon="@drawable/hairdryer"
-            android:title="Hair Specialist" />
+            android:title="@string/hair_specialist" />
 
     </group>
 
     <item
         android:id="@+id/logout"
         android:icon="@drawable/logout"
-        android:title="@string/log_out" />
+        android:title="@string/exit" />
 
 
 </menu>

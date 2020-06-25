@@ -100,6 +100,8 @@
     <string name="cancel">Cancel</string>
     <string name="invoice">Invoice</string>
     <string name="amount_paid">Amount Paid</string>
+    <string name="exit">Exit</string>
+    <string name="hair_specialist">Hair Specialist</string>
 
 
 </resources>
