@@ -102,6 +102,9 @@
     <string name="amount_paid">Amount Paid</string>
     <string name="exit">Exit</string>
     <string name="hair_specialist">Hair Specialist</string>
+    <string name="call_driver">Call Driver</string>
+    <string name="cancel_ride">Cancel Ride</string>
+    <string name="end_ride">End ride</string>
 
 
 </resources>

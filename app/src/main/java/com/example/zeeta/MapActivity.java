@@ -203,7 +203,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     // custom driverDialog
     private Dialog driverDialog;
     private TextView rideEst;
-    private LoaderManager loaderManager;
+    private LoaderManager priceLoaderManager;
     private int rideEstimateAmount;
     private double priceEstimate = 0.0;
     private boolean pickupFirstClick = false;
@@ -280,6 +280,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private int lookingForTaxi = 0;
     private GeoQuery geoQueryTaxi;
     private GeoQuery geoQueryMechanic;
+    private GeneralJobData ridedata;
+    private boolean notifiedRiderA = false;
 
     public static String getLocalityName(Context context, double latitude, double longitude) throws IOException {
         Geocoder geocoder = new Geocoder(context, Locale.getDefault());
@@ -504,8 +506,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             public boolean onMarkerClick(Marker marker) {
                 try {
                     String servType = marker.getSnippet();
+                    LatLng ltl = marker.getPosition();
+                    GeoPoint servicePgp = new GeoPoint(ltl.latitude, ltl.longitude);
                     if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
-                        getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString());
+                        getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString(), servicePgp);
                     } else {
                         getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString());
                     }
@@ -719,6 +723,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         keysFound = new ArrayList<StaffFound>();
         serviceProviderAcceptanceStatus = false;
 
+        String serviceRerequest = getIntent().getStringExtra("ReRequest");
+
         InternetAvailabilityChecker.init(this);
         mInternetAvailabilityChecker = InternetAvailabilityChecker.getInstance();
         mInternetAvailabilityChecker.addInternetConnectivityListener(this);
@@ -732,11 +738,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         driverDialog.setContentView(R.layout.ride_request_page);
         driverDialog.setTitle("Send Request?");
         rideEst = driverDialog.findViewById(R.id.ride_estimate);
-        loaderManager = getLoaderManager();
+        priceLoaderManager = getLoaderManager();
 
-        if (loaderManager.getLoader(1) != null) {
 
-            loaderManager.initLoader(1, null, MapActivity.this);
+        if (priceLoaderManager.getLoader(1) != null) {
+            priceLoaderManager.initLoader(1, null, MapActivity.this);
         }
 
         setContentView(R.layout.activity_map);
@@ -852,6 +858,15 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             }
         });
 
+        if (serviceRerequest != null && serviceRerequest.equalsIgnoreCase("Taxi")) {
+            nemaProgressDialog.show();
+            getTaxi();
+            navigationView.setVisibility(View.GONE);
+        } else if (serviceRerequest != null && serviceRerequest.equalsIgnoreCase("Tricycle")) {
+            nemaProgressDialog.show();
+            executeService("Tricycle");
+            navigationView.setVisibility(View.GONE);
+        }
 
     }
 
@@ -1686,7 +1701,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         });
     }
 
-    private void sendRideRequest(String id, GeoPoint pickup, GeoPoint destination, Long amount) {
+    private void sendRideRequest(String id, GeoPoint jouneyPickup, GeoPoint journeyDestination, Long amountTobePaid, GeoPoint serviceProviderGp, String serviceType) {
         final int[] counter = {0};
         timeStamp = Timestamp.now();
 
@@ -1695,7 +1710,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
         customerRequest = FirebaseFirestore.getInstance()
                 .collection("Customers")
-                .document(id).collection("Request").document(Objects.requireNonNull("ongoing"));
+                .document(FirebaseAuth.getInstance().getUid()).collection("Request").document(Objects.requireNonNull("ongoing"));
 
 
         DocumentReference spJobData = FirebaseFirestore.getInstance()
@@ -1708,9 +1723,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("JobData").document(id);
 
 
-        GeneralJobData generalJobData = new GeneralJobData(pickup, destination, null, FirebaseAuth.getInstance().getUid(),
-                customerPhoneNumber, customerName, (long) 0, (long) amount, "Awaiting",
-                false, false, serviceRendered, timeStamp, "Awaiting", (long) 0, false, false);
+        GeneralJobData generalJobData = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, FirebaseAuth.getInstance().getUid(),
+                customerPhoneNumber, customerName, (long) 0, (long) amountTobePaid, "Awaiting",
+                false, false, serviceType, timeStamp, "Awaiting", (long) 0, false, false);
         spJobData.set(generalJobData).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
@@ -1745,80 +1760,35 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         }, 2000);
 
                                         if (accepted != null) {
-                                            if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp) {
+                                            if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp && !notifiedRiderA) {
 
-                                                Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
+                                                ridedata = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, id,
+                                                        serviceProviderPhone, serviceProviderName, (long) 0, (long) amountTobePaid, "Accepted",
+                                                        false, false, serviceType, timeStamp, "Accepted", (long) 0, false, false);
 
-                                                showRideControlAndDirection(id);
-
-                                                customerjobData.set(new GeneralJobData(pickup, destination, null, id,
-                                                        serviceProviderPhone, serviceProviderName, (long) 0, (long) amount, "Accepted",
-                                                        false, false, serviceRendered, timeStamp, "Awaiting", (long) 0, false, false)).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                customerjobData.set(ridedata).addOnCompleteListener(new OnCompleteListener<Void>() {
                                                     @Override
                                                     public void onComplete(@NonNull Task<Void> task) {
-
+                                                        if (task.isSuccessful()) {
+                                                            Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
+                                                            notifiedRiderA = true;
+                                                            startRidePage();
+                                                        }
                                                     }
                                                 });
 
                                             } else if (accepted.equalsIgnoreCase("Declined")) {
 
-                                                if (counter[0] > 1) {
-                                                    //clear your request since it has been declined
-                                                    clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                                        @Override
-                                                        public void onComplete(@NonNull Task<Void> task) {
-                                                            makeLongToast("Your request have been declined, please choose another Vehicle");
-                                                            Log.w(TAG, "Ride Request declined, clear request data.");
-                                                            customerjobData.update("cancelRide", true);
-                                                            customerjobData.update("status", "Declined");
-
-                                                        }
-                                                    });
-
-                                                }
-
-                                            } else if (started && !endedRide) {//if the driver has started the journey
-                                                customerjobData.update("started", true).addOnCompleteListener(new OnCompleteListener<Void>() {
-                                                    @Override
-                                                    public void onComplete(@NonNull Task<Void> task) {
-                                                        //show layout for ride control, for ability to end ride
-                                                        makeLongToast("Your Journey Has Started!");
-                                                    }
-                                                });
-                                            } else if (endedRide) {
                                                 clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
                                                     @Override
                                                     public void onComplete(@NonNull Task<Void> task) {
-                                                        makeLongToast("The Journey has been completed. Thank you!");
-                                                        Log.w(TAG, "journey completed, clear request data.");
-                                                        customerjobData.set(new GeneralJobData(pickup, destination, null, id,
-                                                                serviceProviderPhone, serviceProviderName, (long) 0, (long) amount, "Accepted",
-                                                                true, true, serviceRendered, timeStamp, "Completed", (long) 0, true, false)).addOnCompleteListener(new OnCompleteListener<Void>() {
-                                                            @Override
-                                                            public void onComplete(@NonNull Task<Void> task) {
-
-                                                            }
-                                                        });
-                                                    }
-                                                });
-
-                                            } else if (cancelRide) {
-                                                clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                                    @Override
-                                                    public void onComplete(@NonNull Task<Void> task) {
-                                                        makeLongToast("Your Ride request has been canceled, please choose another Vehicle");
+                                                        makeLongToast("Your request have been declined, please choose another Vehicle");
                                                         Log.w(TAG, "Ride Request declined, clear request data.");
                                                         customerjobData.update("cancelRide", true);
+                                                        customerjobData.update("status", "Declined");
                                                     }
                                                 });
-                                            } else if (arrivedPickUp && !cancelRide) {
 
-                                                customerjobData.update("arrived", true).addOnCompleteListener(new OnCompleteListener<Void>() {
-                                                    @Override
-                                                    public void onComplete(@NonNull Task<Void> task) {
-                                                        makeLongToast("Your Driver has arrived");
-                                                    }
-                                                });
                                             }
                                         }
                                     }
@@ -1832,17 +1802,21 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     }
 
-    private void showRideControlAndDirection(String id) {
-        cancelRequestBtn.setVisibility(View.VISIBLE);
-        for (int i = 0; i < markerList.size(); i++) {
-            String tempid = markerList.get(i).getId();
-
-            if (tempid.equalsIgnoreCase(id)) {
-                calculateDirectionsForRide(new GeoPoint(markerList.get(i).getPosition().latitude, markerList.get(1).getPosition().longitude));
-            }
-        }
+    private void startRidePage() {
+        Intent intent = new Intent(MapActivity.this, RidePage.class);
+        intent.putExtra("RideData", ridedata);
+        intent.putExtra("servicePLongitude", ridedata.getServiceProviderLocation().getLongitude());
+        intent.putExtra("servicePLatitude", ridedata.getServiceProviderLocation().getLatitude());
+        intent.putExtra("pickupLongitude", ridedata.getServiceLocation().getLongitude());
+        intent.putExtra("pickupLatitude", ridedata.getServiceLocation().getLatitude());
+        intent.putExtra("destinationLongitude", ridedata.getDestination().getLongitude());
+        intent.putExtra("destinationLatitude", ridedata.getDestination().getLatitude());
+        intent.putExtra("amountToBePaid", ridedata.getAmountPaid());
+        startActivityForResult(intent, 1);
+        overridePendingTransition(0, 0);
 
     }
+
 
     private void calculateDirectionsForRide(GeoPoint gp) {
         Log.d(TAG, "calculateDirections: calculating directions.");
@@ -2047,8 +2021,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         try {
             String servType = marker.getSnippet();
+            LatLng ltl = marker.getPosition();
+            GeoPoint servicePgp = new GeoPoint(ltl.latitude, ltl.longitude);
             if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
-                getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString());
+                getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString(), servicePgp);
             } else {
                 getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString());
             }
@@ -2127,7 +2103,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         return state;
     }
 
-    private void getZeetaDriver(String id) {
+    private void getZeetaDriver(String id, GeoPoint servicePLocation) {
         DocumentReference driverDetails = null;
 
         pickUpP = driverDialog.findViewById(R.id.pickupProgressBar);
@@ -2254,7 +2230,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     @Override
                     public void onClick(View v) {
                         destinationText = destinationET.getText().toString();
-                        sendRideRequest(id, pickupLocation, destination, (long) rideEstimateAmount);
+                        sendRideRequest(id, pickupLocation, destination, (long) rideEstimateAmount, servicePLocation, "Taxi");
 
                     }
                 });
@@ -2263,12 +2239,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         });
 
-
     }
 
     @Override
     public Loader<String> onCreateLoader(int id, Bundle args) {
-        // return new rideEstimationLoader(this);
         return new RideEstimationLoader(this, pickupLocation, destination);
     }
 
@@ -2286,16 +2260,17 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     public void startRideEstimation() {
-        loaderManager.initLoader(1, null, this);
+        priceLoaderManager.initLoader(1, null, this);
     }
 
     public void clearLoaderManager() {
-        loaderManager.destroyLoader(1);
+        priceLoaderManager.destroyLoader(1);
     }
 
     private void hideSoftKeyboard(View v) {
         //MapActivity.this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
+        assert inputMethodManager != null;
         inputMethodManager.hideSoftInputFromWindow(v.getWindowToken(), 0);
 
     }

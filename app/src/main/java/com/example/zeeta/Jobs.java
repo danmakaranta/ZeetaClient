@@ -87,11 +87,11 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                     case R.id.jobs_button:
                         return true;
                     case R.id.home_button:
-                        startActivity(new Intent(getApplicationContext(), MapActivity.class));
+                        startActivityForResult(new Intent(getApplicationContext(), MapActivity.class), 1);
                         return true;
                     case R.id.services_list:
                         startActivity(new Intent(getApplicationContext(), MapActivity.class));
-                        overridePendingTransition(0, 0);
+                        // overridePendingTransition(0, 0);
                         return true;
                 }
                 return false;
@@ -117,53 +117,53 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
             public void onComplete(@NonNull Task<QuerySnapshot> task) {
                 if (task.isSuccessful()) {
                     List<DocumentSnapshot> docList = task.getResult().getDocuments();
+                    if (!docList.isEmpty()) {
 
-                    for (QueryDocumentSnapshot document : task.getResult()) {
+                        for (QueryDocumentSnapshot document : task.getResult()) {
 
-                        String name = Objects.requireNonNull(document.getData().get("name")).toString();
-                        String jobRendered = Objects.requireNonNull(document.getData().get("serviceRendered")).toString();
-                        Timestamp date = (Timestamp) document.getData().get("timeStamp");
-                        String jobStatus = Objects.requireNonNull(document.getData().get("status")).toString();
-                        String employeeID = Objects.requireNonNull(document.getData().get("serviceID")).toString();
-                        String phonenumber = Objects.requireNonNull(document.getData().get("phoneNumber")).toString();
-                        long tempPaid = (long) Objects.requireNonNull(document.getData().get("amountPaid"));
-                        int tempInt = safeLongToInt(tempPaid);
-                        double amountPaid = (double) tempInt;
+                            String name = (document.getData().get("name")).toString();
+                            String jobRendered = (document.getData().get("serviceRendered")).toString();
+                            Timestamp date = (Timestamp) document.getData().get("timeStamp");
+                            String jobStatus = (document.getData().get("status")).toString();
+                            String employeeID = (document.getData().get("serviceID")).toString();
+                            String phonenumber = (document.getData().get("phoneNumber")).toString();
+                            long tempPaid = (long) (document.getData().get("amountPaid"));
+                            int tempInt = safeLongToInt(tempPaid);
+                            double amountPaid = (double) tempInt;
 
-                        completedjobsList.add(new CompletedJobs(name, date, jobRendered, jobStatus, employeeID, phonenumber, amountPaid));
+                            completedjobsList.add(new CompletedJobs(name, date, jobRendered, jobStatus, employeeID, phonenumber, amountPaid));
 
-                        ListAdapter myAdapter = new CompletedJobsAdapter(Jobs.this, completedjobsList, 1);
-                        ListView myListView = (ListView) findViewById(R.id.jobs_completed2);
+                            ListAdapter myAdapter = new CompletedJobsAdapter(Jobs.this, completedjobsList, 1);
+                            ListView myListView = (ListView) findViewById(R.id.jobs_completed2);
 
-                        myListView.setAdapter(myAdapter);
+                            myListView.setAdapter(myAdapter);
 
+                            myListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                @Override
+                                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
-                        myListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                            @Override
-                            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                    DocumentReference invoice;
+                                    CompletedJobs jobData = (CompletedJobs) myListView.getItemAtPosition(position);
 
-                                DocumentReference invoice;
-                                CompletedJobs jobData = (CompletedJobs) myListView.getItemAtPosition(position);
-
-                                String jobStatus = jobData.getStatus();
-                                // custom dialog
-                                final Dialog dialog = new Dialog(Jobs.this);
-                                dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-                                dialog.setContentView(R.layout.invoice);
-                                dialog.setTitle("Invoice");
-                                String employeeID = jobData.getEmployeeID();
-                                ImageView closeDialog = dialog.findViewById(R.id.close_x_invoice);
-                                Button callBtn = dialog.findViewById(R.id.call);
-                                invoice = FirebaseFirestore.getInstance().collection("Customers")
-                                        .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid()))
-                                        .collection("Invoice").document(employeeID);
-                                invoice.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-                                    @RequiresApi(api = Build.VERSION_CODES.N)
-                                    @Override
-                                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                                        DocumentSnapshot doc = task.getResult();
-                                        TextView hours = dialog.findViewById(R.id.invoice_hours);
-                                        Button paymentBtn = dialog.findViewById(R.id.make_payment);
+                                    String jobStatus = jobData.getStatus();
+                                    // custom dialog
+                                    final Dialog dialog = new Dialog(Jobs.this);
+                                    dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+                                    dialog.setContentView(R.layout.invoice);
+                                    dialog.setTitle("Invoice");
+                                    String employeeID = jobData.getEmployeeID();
+                                    ImageView closeDialog = dialog.findViewById(R.id.close_x_invoice);
+                                    Button callBtn = dialog.findViewById(R.id.call);
+                                    invoice = FirebaseFirestore.getInstance().collection("Customers")
+                                            .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid()))
+                                            .collection("Invoice").document(employeeID);
+                                    invoice.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                                        @RequiresApi(api = Build.VERSION_CODES.N)
+                                        @Override
+                                        public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                                            DocumentSnapshot doc = task.getResult();
+                                            TextView hours = dialog.findViewById(R.id.invoice_hours);
+                                            Button paymentBtn = dialog.findViewById(R.id.make_payment);
 
                                             if (doc.exists()) {
                                                 Long hrs = (Long) doc.getData().get("hoursWorked");
@@ -239,67 +239,67 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                                 }
                                             });
 
-                                    }
-                                });
-                                DocumentReference rating = null;
-                                final float[] currentRating = new float[1];
-                                final float[] newRating = new float[1];
-                                final float[] userRating = new float[1];
-                                RatingBar ratingBar = dialog.findViewById(R.id.ratingBar);
-
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                                    rating = FirebaseFirestore.getInstance()
-                                            .collection("Users")
-                                            .document(jobData.getEmployeeID());
-                                    rating.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-                                        @Override
-                                        public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                                            if (task.isSuccessful()) {
-                                                DocumentSnapshot documentSnapshot = task.getResult();
-                                                currentRating[0] = Float.parseFloat(Objects.requireNonNull(documentSnapshot.getString("rating")));
-                                                ratingBar.setRating(currentRating[0]);
-
-                                            }
                                         }
                                     });
-                                }
-                                ratingBar.setOnRatingBarChangeListener(new RatingBar.OnRatingBarChangeListener() {
-                                    @Override
-                                    public void onRatingChanged(RatingBar ratingBar, float rating, boolean fromUser) {
-                                        userRating[0] = rating;
-                                    }
-                                });
+                                    DocumentReference rating = null;
+                                    final float[] currentRating = new float[1];
+                                    final float[] newRating = new float[1];
+                                    final float[] userRating = new float[1];
+                                    RatingBar ratingBar = dialog.findViewById(R.id.ratingBar);
 
-                                TextView textName = dialog.findViewById(R.id.invoiceName);
-                                textName.setText(jobData.getName());
-
-                                TextView textProf = dialog.findViewById(R.id.job_done);
-                                textProf.setText("Service: " + jobData.getJob());
-                                loadingProgressDialog.dismiss();
-
-                                Button clsJob = dialog.findViewById(R.id.close_job);
-                                Button makePayment = dialog.findViewById(R.id.make_payment);
-                                Button reportE = dialog.findViewById(R.id.report_service_provider);
-
-                                closeDialog.setOnClickListener(new View.OnClickListener() {
-                                    @Override
-                                    public void onClick(View v) {
-                                        dialog.dismiss();
-                                    }
-                                });
-
-
-                                DocumentReference finalRating = rating;
-                                clsJob.setOnClickListener(new View.OnClickListener() {
-                                    @Override
-                                    public void onClick(View v) {
-                                        newRating[0] = (currentRating[0] + userRating[0]) / 2;
-                                        serviceProviderJobs = FirebaseFirestore.getInstance()
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                        rating = FirebaseFirestore.getInstance()
                                                 .collection("Users")
-                                                .document(employeeID)
-                                                .collection("JobData").document(FirebaseAuth.getInstance().getUid());
-                                        DocumentReference customerJobs = FirebaseFirestore.getInstance()
-                                                .collection("Customers")
+                                                .document(jobData.getEmployeeID());
+                                        rating.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                                            @Override
+                                            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                                                if (task.isSuccessful()) {
+                                                    DocumentSnapshot documentSnapshot = task.getResult();
+                                                    currentRating[0] = Float.parseFloat(Objects.requireNonNull(documentSnapshot.getString("rating")));
+                                                    ratingBar.setRating(currentRating[0]);
+
+                                                }
+                                            }
+                                        });
+                                    }
+                                    ratingBar.setOnRatingBarChangeListener(new RatingBar.OnRatingBarChangeListener() {
+                                        @Override
+                                        public void onRatingChanged(RatingBar ratingBar, float rating, boolean fromUser) {
+                                            userRating[0] = rating;
+                                        }
+                                    });
+
+                                    TextView textName = dialog.findViewById(R.id.invoiceName);
+                                    textName.setText(jobData.getName());
+
+                                    TextView textProf = dialog.findViewById(R.id.job_done);
+                                    textProf.setText("Service: " + jobData.getJob());
+                                    loadingProgressDialog.dismiss();
+
+                                    Button clsJob = dialog.findViewById(R.id.close_job);
+                                    Button makePayment = dialog.findViewById(R.id.make_payment);
+                                    Button reportE = dialog.findViewById(R.id.report_service_provider);
+
+                                    closeDialog.setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View v) {
+                                            dialog.dismiss();
+                                        }
+                                    });
+
+
+                                    DocumentReference finalRating = rating;
+                                    clsJob.setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View v) {
+                                            newRating[0] = (currentRating[0] + userRating[0]) / 2;
+                                            serviceProviderJobs = FirebaseFirestore.getInstance()
+                                                    .collection("Users")
+                                                    .document(employeeID)
+                                                    .collection("JobData").document(FirebaseAuth.getInstance().getUid());
+                                            DocumentReference customerJobs = FirebaseFirestore.getInstance()
+                                                    .collection("Customers")
                                                     .document(FirebaseAuth.getInstance().getUid())
                                                     .collection("JobData").document(employeeID);
                                             serviceProviderJobs.update("status", "Closed").addOnCompleteListener(new OnCompleteListener<Void>() {
@@ -329,25 +329,27 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                                 }
                                             });
 
+                                        }
+                                    });
+                                    if (jobStatus.equalsIgnoreCase("Completed")) {
+                                        Toast.makeText(Jobs.this, "This Job has been completed!", Toast.LENGTH_SHORT).show();
+                                        clsJob.setEnabled(false);
+                                        makePayment.setEnabled(false);
+                                        callBtn.setEnabled(false);
+                                    } else if (jobStatus.equalsIgnoreCase("Canceled by You")) {
+                                        Toast.makeText(Jobs.this, "This Job has been canceled by You!", Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        dialog.show();
+                                        loadingProgressDialog.show();
                                     }
-                                });
-                                if (jobStatus.equalsIgnoreCase("Completed")) {
-                                    Toast.makeText(Jobs.this, "This Job has been completed!", Toast.LENGTH_SHORT).show();
-                                    clsJob.setEnabled(false);
-                                    makePayment.setEnabled(false);
-                                    callBtn.setEnabled(false);
+
                                 }
-                                dialog.show();
-                                loadingProgressDialog.show();
+                            });
 
-
-                            }
-                        });
-
+                        }
                     }
-                    if (docList.size() >= 1) {
 
-                    } else {
+                    if (docList.size() < 1) {
                         Toast.makeText(Jobs.this, "You do not have previously executed jobs", Toast.LENGTH_LONG).show();
                     }
                 }

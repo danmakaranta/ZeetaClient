@@ -240,6 +240,7 @@ public class GeneralJobData implements Parcelable {
         dest.writeString(serviceRendered);
         dest.writeString(phoneNumber);
         dest.writeString(Name);
+
         if (distanceCovered == null) {
             dest.writeByte((byte) 0);
         } else {
