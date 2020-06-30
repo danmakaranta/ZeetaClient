@@ -224,7 +224,24 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                         excp.printStackTrace();
                     }
                     if (canceledRide) {
-                        cancelRide();
+                        final AlertDialog.Builder builder = new AlertDialog.Builder(RidePage.this);
+                        builder.setMessage("We are SORRY, your driver canceled, please choose another vehicle?")
+                                .setCancelable(false);
+                        final AlertDialog alert = builder.create();
+
+                        new CountDownTimer(3000, 1000) {
+                            @Override
+                            public void onTick(long millisUntilFinished) {
+                                alert.show();
+                            }
+
+                            @Override
+                            public void onFinish() {
+                                alert.dismiss();
+                                cancelRide();
+                            }
+                        }.start();
+
                     }
                     if (arrived && !arrivalNotification) {
                         arrivalNotification = true;
@@ -350,7 +367,6 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                     .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("Request").document("ongoing");
         }
 
-
         DocumentReference customersJobDataOncloud = FirebaseFirestore.getInstance()
                 .collection("Customers").document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid()))
                 .collection("JobData").document(journeyInfo.getServiceID());
@@ -370,24 +386,8 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                                 clientRideRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
                                     @Override
                                     public void onComplete(@NonNull Task<Void> task) {
-                                        final AlertDialog.Builder builder = new AlertDialog.Builder(RidePage.this);
-                                        builder.setMessage("We are SORRY, your driver canceled, please choose another vehicle?")
-                                                .setCancelable(false);
-                                        final AlertDialog alert = builder.create();
-
-                                        new CountDownTimer(3000, 1000) {
-                                            @Override
-                                            public void onTick(long millisUntilFinished) {
-                                                alert.show();
-                                            }
-
-                                            @Override
-                                            public void onFinish() {
-                                                alert.dismiss();
-                                                Intent intent = new Intent(RidePage.this, MapActivity.class).putExtra("ReRequest", journeyInfo.getServiceRendered());
-                                                startActivity(intent);
-                                            }
-                                        }.start();
+                                        Intent intent = new Intent(RidePage.this, MapActivity.class).putExtra("ReRequest", journeyInfo.getServiceRendered());
+                                        startActivity(intent);
                                     }
                                 });
 
