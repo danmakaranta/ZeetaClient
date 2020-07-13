@@ -10,9 +10,14 @@
         android:id="@+id/jobs_button"
         android:icon="@drawable/jobs"
         android:title="@string/jobs" />
+
     <item
         android:id="@+id/services_list"
         android:icon="@drawable/search1"
         android:title="@string/services" />
+    <item
+        android:id="@+id/dashboard_button"
+        android:icon="@drawable/ic_dashboard_black_24dp"
+        android:title="@string/title_dashboard" />
 
 </menu>

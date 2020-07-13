@@ -61,6 +61,8 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
     private int hourlyrate;
     private ProgressDialog loadingProgressDialog;
     private InternetAvailabilityChecker mInternetAvailabilityChecker;
+    private Dialog paymentOptionsDialog;
+    private Dialog InvoiceDialog;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -147,13 +149,14 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
 
                                     String jobStatus = jobData.getStatus();
                                     // custom dialog
-                                    final Dialog dialog = new Dialog(Jobs.this);
-                                    dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-                                    dialog.setContentView(R.layout.invoice);
-                                    dialog.setTitle("Invoice");
+                                    InvoiceDialog = new Dialog(Jobs.this);
+                                    InvoiceDialog.setContentView(R.layout.invoice);
+                                    InvoiceDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+                                    InvoiceDialog.setCancelable(true);
+
                                     String employeeID = jobData.getEmployeeID();
-                                    ImageView closeDialog = dialog.findViewById(R.id.close_x_invoice);
-                                    Button callBtn = dialog.findViewById(R.id.call);
+                                    ImageView closeDialog = InvoiceDialog.findViewById(R.id.close_x_invoice);
+                                    Button callBtn = InvoiceDialog.findViewById(R.id.call);
                                     invoice = FirebaseFirestore.getInstance().collection("Customers")
                                             .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid()))
                                             .collection("Invoice").document(employeeID);
@@ -162,17 +165,17 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                         @Override
                                         public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                                             DocumentSnapshot doc = task.getResult();
-                                            TextView hours = dialog.findViewById(R.id.invoice_hours);
-                                            Button paymentBtn = dialog.findViewById(R.id.make_payment);
+                                            TextView hours = InvoiceDialog.findViewById(R.id.invoice_hours);
+                                            Button paymentBtn = InvoiceDialog.findViewById(R.id.make_payment);
 
                                             if (doc.exists()) {
                                                 Long hrs = (Long) doc.getData().get("hoursWorked");
                                                 hours.setText("" + hrs);
-                                                TextView total = dialog.findViewById(R.id.total_earned);
+                                                TextView total = InvoiceDialog.findViewById(R.id.total_earned);
                                                 //long tot = (long) doc.get("amount");
                                                 double totDouble = (double) doc.get("amount");
                                                 total.setText("N" + totDouble);
-                                                TextView hoursRate = dialog.findViewById(R.id.hours_rate);
+                                                TextView hoursRate = InvoiceDialog.findViewById(R.id.hours_rate);
                                                 hourlyrate = (int) (totDouble / hrs);
                                                 if (hourlyrate <= 0) {
                                                     hourlyrate = getServiceProviderRate(employeeID);
@@ -191,6 +194,8 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                                         if (totDouble <= 0) {
                                                             loadingProgressDialog.dismiss();
                                                             Toast.makeText(Jobs.this, "Request for an invoice from the " + jobData.getJob(), Toast.LENGTH_LONG).show();
+                                                        } else {// go to payment page
+                                                            makePayment();
                                                         }
                                                     }
                                                 });
@@ -208,11 +213,11 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                                             if (doc.exists()) {
                                                                 Long hrs = (Long) doc.getData().get("hoursWorked");
                                                                 hours.setText("" + hrs);
-                                                                TextView total = dialog.findViewById(R.id.total_earned);
+                                                                TextView total = InvoiceDialog.findViewById(R.id.total_earned);
                                                                 long amountPaidLong = (long) doc.get("amountPaid");
                                                                 int tempInt = safeLongToInt(amountPaidLong);
                                                                 total.setText("N" + amountPaid);
-                                                                TextView hoursRate = dialog.findViewById(R.id.hours_rate);
+                                                                TextView hoursRate = InvoiceDialog.findViewById(R.id.hours_rate);
                                                                 if (hrs > 0) {
                                                                     hourlyrate = (int) (tempInt / hrs);
                                                                 }
@@ -245,7 +250,7 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                     final float[] currentRating = new float[1];
                                     final float[] newRating = new float[1];
                                     final float[] userRating = new float[1];
-                                    RatingBar ratingBar = dialog.findViewById(R.id.ratingBar);
+                                    RatingBar ratingBar = InvoiceDialog.findViewById(R.id.ratingBar);
 
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                                         rating = FirebaseFirestore.getInstance()
@@ -270,21 +275,21 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                         }
                                     });
 
-                                    TextView textName = dialog.findViewById(R.id.invoiceName);
+                                    TextView textName = InvoiceDialog.findViewById(R.id.invoiceName);
                                     textName.setText(jobData.getName());
 
-                                    TextView textProf = dialog.findViewById(R.id.job_done);
+                                    TextView textProf = InvoiceDialog.findViewById(R.id.job_done);
                                     textProf.setText("Service: " + jobData.getJob());
                                     loadingProgressDialog.dismiss();
 
-                                    Button clsJob = dialog.findViewById(R.id.close_job);
-                                    Button makePayment = dialog.findViewById(R.id.make_payment);
-                                    Button reportE = dialog.findViewById(R.id.report_service_provider);
+                                    Button clsJob = InvoiceDialog.findViewById(R.id.close_job);
+                                    Button makePayment = InvoiceDialog.findViewById(R.id.make_payment);
+                                    Button reportE = InvoiceDialog.findViewById(R.id.report_service_provider);
 
                                     closeDialog.setOnClickListener(new View.OnClickListener() {
                                         @Override
                                         public void onClick(View v) {
-                                            dialog.dismiss();
+                                            InvoiceDialog.dismiss();
                                         }
                                     });
 
@@ -317,7 +322,7 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                                                     finalRating.update("rating", newArtisanRating).addOnCompleteListener(new OnCompleteListener<Void>() {
                                                                         @Override
                                                                         public void onComplete(@NonNull Task<Void> task) {
-                                                                            dialog.dismiss();
+                                                                            InvoiceDialog.dismiss();
                                                                         }
                                                                     });
 
@@ -336,10 +341,13 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                         clsJob.setEnabled(false);
                                         makePayment.setEnabled(false);
                                         callBtn.setEnabled(false);
-                                    } else if (jobStatus.equalsIgnoreCase("Canceled by You")) {
-                                        Toast.makeText(Jobs.this, "This Job has been canceled by You!", Toast.LENGTH_SHORT).show();
+                                    } else if (jobStatus.equalsIgnoreCase("Canceled")) {
+                                        clsJob.setEnabled(false);
+                                        makePayment.setEnabled(false);
+                                        callBtn.setEnabled(false);
+                                        Toast.makeText(Jobs.this, "This Job was canceled!", Toast.LENGTH_SHORT).show();
                                     } else {
-                                        dialog.show();
+                                        InvoiceDialog.show();
                                         loadingProgressDialog.show();
                                     }
 
@@ -357,6 +365,39 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
             }
         });
 
+    }
+
+    private void makePayment() {
+        InvoiceDialog.dismiss();
+        paymentOptions();
+    }
+
+    private void paymentOptions() {
+        paymentOptionsDialog = new Dialog(this);
+        paymentOptionsDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        paymentOptionsDialog.setTitle("Payment Options");
+        paymentOptionsDialog.setContentView(R.layout.payment_options);
+        ImageView walletIcon = paymentOptionsDialog.findViewById(R.id.walletIcon);
+        TextView cardOptionTxt = paymentOptionsDialog.findViewById(R.id.cardOptionTxt);
+        TextView walletOptionTxt = paymentOptionsDialog.findViewById(R.id.walletOptionTxt);
+        TextView walletBalancetxt = paymentOptionsDialog.findViewById(R.id.waletBalance);
+        ImageView creditCIcon = paymentOptionsDialog.findViewById(R.id.creditCIcon);
+        walletIcon = paymentOptionsDialog.findViewById(R.id.walletIcon);
+        walletBalancetxt.setEnabled(false);
+        walletIcon.setEnabled(false);
+
+        //walletOptionTxt.setOnClickListener(v -> buyWithWallet());
+        // walletIcon.setOnClickListener(v -> buyWithWallet());
+        cardOptionTxt.setOnClickListener(v -> payWithCard());
+        creditCIcon.setOnClickListener(v -> payWithCard());
+
+        paymentOptionsDialog.show();
+
+    }
+
+    private void payWithCard() {
+        paymentOptionsDialog.dismiss();
+        startActivity(new Intent(getApplicationContext(), CreditCardLayout.class));
     }
 
 

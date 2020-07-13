@@ -24,7 +24,8 @@
         android:roundIcon="@drawable/zeetaicon"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".RidePage"></activity>
+        <activity android:name=".CreditCardLayout"></activity>
+        <activity android:name=".RidePage" />
         <activity android:name=".predesign" />
         <activity android:name=".drawer" />
         <activity

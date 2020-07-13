@@ -25,6 +25,10 @@
             android:icon="@drawable/saw"
             android:title="@string/carpenter" />
         <item
+            android:id="@+id/bikeDelivery"
+            android:icon="@drawable/deliverybike"
+            android:title="@string/bike_delivery" />
+        <item
             android:id="@+id/lawerService"
             android:icon="@drawable/lawyer"
             android:title="@string/lawyer" />

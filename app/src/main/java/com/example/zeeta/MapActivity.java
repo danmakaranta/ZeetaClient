@@ -278,6 +278,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private String requestedService;
     private InternetAvailabilityChecker mInternetAvailabilityChecker;
     private int lookingForTaxi = 0;
+    private int lookingForMechanic = 0;
     private GeoQuery geoQueryTaxi;
     private GeoQuery geoQueryMechanic;
     private GeneralJobData ridedata;
@@ -765,30 +766,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     .apiKey(getString(R.string.google_directions_api_key))
                     .build();
         }
-        cancelRequestBtn = findViewById(R.id.cancelRequest);
-        cancelRequestBtn.setVisibility(View.INVISIBLE);//hide the button for now until needed
-        cancelRequestBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (clientRideRequest != null) {
 
-                    clientRideRequest.update("cancelRide", true).addOnCompleteListener(new OnCompleteListener<Void>() {
-                        @Override
-                        public void onComplete(@NonNull Task<Void> task) {
-                            if (task.isSuccessful()) {
-                                cancelRequestBtn.setVisibility(View.INVISIBLE);
-                                customerRequest.update("cancelRide", true).addOnCompleteListener(new OnCompleteListener<Void>() {
-                                    @Override
-                                    public void onComplete(@NonNull Task<Void> task) {
-
-                                    }
-                                });
-                            }
-                        }
-                    });
-                }
-            }
-        });
 
         navigationView = findViewById(R.id.drawer_navigation);
 
@@ -807,6 +785,12 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         return true;
                     case R.id.jobs_button:
                         startActivity(new Intent(getApplicationContext(), Jobs.class).putExtra("RequestedServices", selectedServices));
+                        return true;
+                    case R.id.dashboard_button:
+                        Intent dashBIntent = new Intent(MapActivity.this, DashBoard.class);
+                        dashBIntent.putExtra("rating", "4.5");
+                        dashBIntent.putExtra("walletBalance", 5000.0);
+                        startActivity(dashBIntent);
                         return true;
                     case R.id.services_list:
                         if (navOpened) {
@@ -849,6 +833,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         getMechanic();
                         navigationView.setVisibility(View.GONE);
                         return true;
+                    case R.id.bikeDelivery:
+                        nemaProgressDialog.show();
+                        getDeliveryBikes();
+                        navigationView.setVisibility(View.GONE);
+                        return true;
                     case R.id.logout:
                         //blah .....
                         return true;
@@ -868,6 +857,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             navigationView.setVisibility(View.GONE);
         }
 
+    }
+
+    private void getDeliveryBikes() {
     }
 
 
@@ -1036,6 +1028,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     private void getTaxi() {
+        Log.d(TAG, "getTaxi() 1");
 
         DatabaseReference refTaxi = null;
         refTaxi = FirebaseDatabase.getInstance().getReference(locality).child("Taxi");
@@ -1066,12 +1059,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         geoQueryTaxi = finalGeoFireTaxi.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
                     }
 
-
                     geoQueryTaxi.addGeoQueryEventListener(new GeoQueryEventListener() {
 
                         @Override
                         public void onKeyEntered(String key, GeoLocation location) {
-
+                            Log.d(TAG, "getTaxi() 2");
                             keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
                             if (engaged(key)) {
 
@@ -1103,6 +1095,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                     staffMarker.showInfoWindow();
                                 } else {
                                     if (!markerContains(key)) {
+                                        nemaProgressDialog.dismiss();
                                         Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
                                         staffMarker.setTag(key);
                                         staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
@@ -1158,6 +1151,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     private void getMechanic() {
+        Log.d(TAG, "getMechanic() 1");
 
         DatabaseReference refMechanic = null;
         refMechanic = FirebaseDatabase.getInstance().getReference(locality).child("Mechanic");
@@ -1193,6 +1187,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
                         @Override
                         public void onKeyEntered(String key, GeoLocation location) {
+                            Log.d(TAG, "getMechanic() 2:" + key);
 
                             keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
                             if (engaged(key)) {
@@ -1258,8 +1253,12 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
                         @Override
                         public void onGeoQueryReady() {
-                            for (int i = 0; i <= 3; i++) {
+                           /* for (int i = 0; i <= 3; i++) {
                                 getMechanic();
+                            }*/
+                            if (lookingForMechanic <= 5) {
+                                getMechanic();
+                                lookingForMechanic++;
                             }
                         }
 
@@ -1770,9 +1769,24 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                                     @Override
                                                     public void onComplete(@NonNull Task<Void> task) {
                                                         if (task.isSuccessful()) {
-                                                            Toast.makeText(MapActivity.this, "Your Driver is on the way!", Toast.LENGTH_LONG).show();
-                                                            notifiedRiderA = true;
-                                                            startRidePage();
+                                                            final AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
+                                                            builder.setMessage("Your driver is few minutes to your pick up")
+                                                                    .setCancelable(false);
+                                                            final AlertDialog alert = builder.create();
+
+                                                            new CountDownTimer(3000, 1000) {
+                                                                @Override
+                                                                public void onTick(long millisUntilFinished) {
+                                                                    alert.show();
+                                                                }
+
+                                                                @Override
+                                                                public void onFinish() {
+                                                                    alert.dismiss();
+                                                                    notifiedRiderA = true;
+                                                                    startRidePage();
+                                                                }
+                                                            }.start();
                                                         }
                                                     }
                                                 });
@@ -1812,6 +1826,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         intent.putExtra("destinationLongitude", ridedata.getDestination().getLongitude());
         intent.putExtra("destinationLatitude", ridedata.getDestination().getLatitude());
         intent.putExtra("amountToBePaid", ridedata.getAmountPaid());
+        intent.putExtra("locality", locality);
         startActivityForResult(intent, 1);
         overridePendingTransition(0, 0);
 
@@ -2459,9 +2474,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                             if (task.isComplete()) {
                                 Location location = task.getResult();
                                 currentLocation = location;
-
                                 try {
-                                    //locality = getLocality();
+
                                     locality = getLocalityName(MapActivity.this, location.getLatitude(), location.getLongitude());
 
                                     Log.d("Locality", "StateOfExcecution " + getLocalityName(MapActivity.this, location.getLatitude(), location.getLongitude()));

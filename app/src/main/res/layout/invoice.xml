@@ -3,12 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="270dp"
     android:layout_height="450dp"
-    android:background="@drawable/relative_layout_background">
+    android:background="@drawable/green_boarder">
 
     <ImageView
         android:id="@+id/close_x_invoice"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
         android:layout_margin="15dp"

@@ -96,7 +96,7 @@
     <string name="lawyer">Lawyer</string>
     <string name="barber">Barber</string>
     <string name="carpenter">Carpenter</string>
-    <string name="plumbing">Plumbing</string>
+    <string name="plumbing">Plumber</string>
     <string name="cancel">Cancel</string>
     <string name="invoice">Invoice</string>
     <string name="amount_paid">Amount Paid</string>
@@ -105,6 +105,10 @@
     <string name="call_driver">Call Driver</string>
     <string name="cancel_ride">Cancel Ride</string>
     <string name="end_ride">End ride</string>
+    <string name="pay_now">Pay Now</string>
+    <string name="select_your_payment_method">Select Your payment method:</string>
+    <string name="cash_payment">Cash Payment:</string>
+    <string name="bike_delivery">Bike Delivery</string>
 
 
 </resources>
