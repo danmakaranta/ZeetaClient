@@ -24,7 +24,7 @@
 
 
     <com.google.android.material.navigation.NavigationView
-        android:id="@+id/drawer_navigation"
+        android:id="@+id/side_navigation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="start"

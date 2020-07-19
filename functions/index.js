@@ -39,3 +39,9 @@ exports.onMessageCreate = functions.firestore
      console.log(change.document);
   });
 
+  exports.onConnectPurchaseRequest = functions.firestore
+  .document('ConnectPurchase')
+  .onUpdate((change, context) => {    
+     //console.log(change.after.ref.parent);
+     console.log(change.document);
+  });

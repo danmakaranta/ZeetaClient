@@ -91,7 +91,7 @@
     <string name="job_status">status</string>
     <string name="services">Services</string>
     <string name="tricycle_keke">Tricycle(keke)</string>
-    <string name="mechanic">Mechanic</string>
+    <string name="mechanic">Mechanic(Car)</string>
     <string name="log_out">Log out</string>
     <string name="lawyer">Lawyer</string>
     <string name="barber">Barber</string>
@@ -101,7 +101,7 @@
     <string name="invoice">Invoice</string>
     <string name="amount_paid">Amount Paid</string>
     <string name="exit">Exit</string>
-    <string name="hair_specialist">Hair Specialist</string>
+    <string name="hair_specialist">Hair Dresser</string>
     <string name="call_driver">Call Driver</string>
     <string name="cancel_ride">Cancel Ride</string>
     <string name="end_ride">End ride</string>
@@ -109,6 +109,8 @@
     <string name="select_your_payment_method">Select Your payment method:</string>
     <string name="cash_payment">Cash Payment:</string>
     <string name="bike_delivery">Bike Delivery</string>
+    <string name="nurse">Nurse</string>
+    <string name="fashion_designer">Fashion Designer</string>
 
 
 </resources>
