@@ -11,14 +11,14 @@
             android:id="@+id/tricycleService"
             android:icon="@drawable/tricycle"
             android:title="@string/tricycle_keke" />
-        <item
+        <!--<item
             android:id="@+id/nurse"
             android:icon="@drawable/nurse"
-            android:title="@string/nurse" />
+            android:title="@string/nurse" />-->
         <item
-            android:id="@+id/tailor"
+            android:id="@+id/fashion_designer"
             android:icon="@drawable/fashiondesigner"
-            android:title="@string/fashion_designer" />
+            android:title="@string/tailor" />
 
         <item
             android:id="@+id/mechanicService"
@@ -28,14 +28,14 @@
             android:id="@+id/plummingService"
             android:icon="@drawable/pipeline"
             android:title="@string/plumbing" />
-        <item
-            android:id="@+id/carpentryService"
-            android:icon="@drawable/saw"
-            android:title="@string/carpenter" />
-        <item
-            android:id="@+id/bikeDelivery"
-            android:icon="@drawable/deliverybike"
-            android:title="@string/bike_delivery" />
+        <!-- <item
+             android:id="@+id/carpentryService"
+             android:icon="@drawable/saw"
+             android:title="@string/carpenter" />-->
+        <!-- <item
+             android:id="@+id/bikeDelivery"
+             android:icon="@drawable/deliverybike"
+             android:title="@string/bike_delivery" />-->
 
         <item
             android:id="@+id/barberService"

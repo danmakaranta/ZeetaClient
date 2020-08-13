@@ -5,7 +5,7 @@
     android:layout_height="match_parent">
 
     <LinearLayout
-        android:layout_width="300dp"
+        android:layout_width="350dp"
         android:layout_height="160dp"
         android:background="@drawable/green_boarder"
         android:orientation="vertical"
@@ -39,8 +39,8 @@
 
             <ImageButton
                 android:id="@+id/creditCIcon"
-                android:layout_width="46dp"
-                android:layout_height="43dp"
+                android:layout_width="56dp"
+                android:layout_height="53dp"
                 android:src="@drawable/creditcard24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -80,8 +80,8 @@
 
             <ImageButton
                 android:id="@+id/walletIcon"
-                android:layout_width="45dp"
-                android:layout_height="39dp"
+                android:layout_width="55dp"
+                android:layout_height="49dp"
                 android:src="@drawable/cash"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"

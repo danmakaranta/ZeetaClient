@@ -111,7 +111,7 @@ public class Signin extends AppCompatActivity implements
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 FirebaseUser user = firebaseAuth.getCurrentUser();
                 if (user != null) {
-                    Log.d(TAG, "onAuthStateChanged:signed_in:" + user.getUid());
+
                     Toast.makeText(Signin.this, "Welcome: " + user.getEmail(), Toast.LENGTH_SHORT).show();
 
                     FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -128,7 +128,7 @@ public class Signin extends AppCompatActivity implements
                         public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                             if (task.isSuccessful()) {
                                 Log.d(TAG, "onComplete: successfully set the user client.");
-                                com.example.zeeta.models.User user = task.getResult().toObject(User.class);
+                                User user = task.getResult().toObject(User.class);
                                 ((UserClient) (getApplicationContext())).setUser(user);
                             }
                         }

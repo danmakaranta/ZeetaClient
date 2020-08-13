@@ -39,9 +39,13 @@ public class StartPage extends AppCompatActivity implements InternetConnectivity
             @Override
             public void onFinish() {
                 // do something end times 5s
-                Intent intent = new Intent(StartPage.this, Signin.class);
+                /*Intent intent = new Intent(StartPage.this, Signin.class);
+                startActivity(intent);
+                overridePendingTransition(0, 0);*/
+                Intent intent = new Intent(StartPage.this, MapActivity.class);
                 startActivity(intent);
                 overridePendingTransition(0, 0);
+
             }
 
         }.start();

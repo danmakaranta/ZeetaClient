@@ -150,8 +150,8 @@ public class Jobs extends AppCompatActivity implements InternetConnectivityListe
                                     String jobStatus = jobData.getStatus();
                                     // custom dialog
                                     InvoiceDialog = new Dialog(Jobs.this);
-                                    InvoiceDialog.setContentView(R.layout.invoice);
                                     InvoiceDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+                                    InvoiceDialog.setContentView(R.layout.invoice);
                                     InvoiceDialog.setCancelable(true);
 
                                     String employeeID = jobData.getEmployeeID();

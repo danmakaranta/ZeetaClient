@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="300dp"
-    android:layout_height="465dp"
+    android:layout_height="510dp"
     android:background="@drawable/relative_layout_background">
 
     <TextView
@@ -17,17 +17,50 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <LinearLayout
+        android:id="@+id/payment_method"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/relative_layout_background"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/driver_information_layout">
+
+        <ImageView
+            android:id="@+id/selected_payment_icon"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_margin="5dp"
+            android:contentDescription="selection icon"
+            android:src="@drawable/creditcard24" />
+
+        <Spinner
+            android:id="@+id/payment_selection"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:entries="@array/payment_methods"
+            android:paddingStart="10dp"
+            android:paddingLeft="10dp"
+            android:spinnerMode="dialog" />
+
+    </LinearLayout>
+
     <TextView
         android:id="@+id/textView3"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="5dp"
         android:layout_marginLeft="5dp"
-        android:layout_marginTop="10dp"
-        android:text="Pickup Location:"
+        android:layout_marginTop="5dp"
+        android:text="@string/pickup_location"
         android:textSize="20sp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/driver_information_layout" />
+        app:layout_constraintTop_toBottomOf="@+id/payment_method" />
 
     <LinearLayout
         android:id="@+id/pickup_layout"
@@ -66,7 +99,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="5dp"
         android:layout_marginLeft="5dp"
-        android:layout_marginTop="23dp"
+        android:layout_marginTop="5dp"
         android:text="Destination:"
         android:textSize="20sp"
         app:layout_constraintStart_toStartOf="parent"
@@ -116,7 +149,7 @@
         android:id="@+id/ride_estimate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
+        android:layout_marginBottom="5dp"
         android:text="N 0.0"
         android:textSize="20sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -127,11 +160,12 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="5dp"
-        android:layout_marginLeft="5dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginBottom="5dp"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="5dp"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/ride_estimate">
 
         <Button
@@ -140,7 +174,6 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
             android:layout_marginLeft="20dp"
-            android:layout_marginTop="5dp"
             android:background="@drawable/custom_button3"
             android:text="Request Ride"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -150,10 +183,9 @@
             android:id="@+id/cancel_ride_request"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="35dp"
-            android:layout_marginTop="5dp"
-            android:background="@drawable/custom_button3"
             android:layout_marginStart="30dp"
+            android:layout_marginLeft="35dp"
+            android:background="@drawable/custom_button3"
             android:text="@android:string/cancel" />
 
     </LinearLayout>
@@ -236,6 +268,31 @@
                 android:text="DMV-000-ZEETA"
                 android:textSize="18sp"
                 app:layout_constraintStart_toStartOf="parent" />
+
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/classInformation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Class:               "
+                android:textSize="18sp"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <TextView
+                android:id="@+id/vehicle_class"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="A"
+                android:textSize="18sp"
+                app:layout_constraintStart_toStartOf="parent" />
+
 
         </LinearLayout>
 

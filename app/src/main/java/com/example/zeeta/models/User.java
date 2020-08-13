@@ -13,6 +13,9 @@ public class User implements Parcelable {
     private String avatar;
     private String phoneNumber;
     private boolean newUser;
+    private String rating;
+    private double wallet;
+
 
     protected User(Parcel in) {
         email = in.readString();
@@ -21,6 +24,20 @@ public class User implements Parcelable {
         avatar = in.readString();
         phoneNumber = in.readString();
         newUser = in.readByte() != 0;
+        rating = in.readString();
+        wallet = in.readDouble();
+    }
+
+
+    public User(String email, String user_id, String username, String avatar, String phoneNumber, boolean newUser, String rating, double wallet) {
+        this.email = email;
+        this.user_id = user_id;
+        this.username = username;
+        this.avatar = avatar;
+        this.phoneNumber = phoneNumber;
+        this.newUser = newUser;
+        this.rating = rating;
+        this.wallet = wallet;
     }
 
     public static final Creator<User> CREATOR = new Creator<User>() {
@@ -34,15 +51,6 @@ public class User implements Parcelable {
             return new User[size];
         }
     };
-
-    public User(String email, String user_id, String username, String avatar, String phoneNumber, boolean newUser) {
-        this.email = email;
-        this.user_id = user_id;
-        this.username = username;
-        this.avatar = avatar;
-        this.phoneNumber = phoneNumber;
-        this.newUser = newUser;
-    }
 
     public boolean isNewUser() {
         return newUser;
@@ -60,10 +68,25 @@ public class User implements Parcelable {
         this.phoneNumber = phoneNumber;
     }
 
+    public String getRating() {
+        return rating;
+    }
+
+    public void setRating(String rating) {
+        this.rating = rating;
+    }
+
+    public double getWallet() {
+        return wallet;
+    }
+
+    public void setWallet(double wallet) {
+        this.wallet = wallet;
+    }
+
     public User() {
 
     }
-
 
 
     public String getAvatar() {
@@ -114,15 +137,14 @@ public class User implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-
         dest.writeString(email);
         dest.writeString(user_id);
         dest.writeString(username);
         dest.writeString(avatar);
         dest.writeString(phoneNumber);
         dest.writeByte((byte) (newUser ? 1 : 0));
+        dest.writeString(rating);
+        dest.writeDouble(wallet);
     }
-
-
 }
 

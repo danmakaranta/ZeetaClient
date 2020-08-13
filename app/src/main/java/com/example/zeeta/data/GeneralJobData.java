@@ -39,37 +39,7 @@ public class GeneralJobData implements Parcelable {
     private String accepted;
     private boolean arrived;
     private boolean cancelRide;
-
-    protected GeneralJobData(Parcel in) {
-        serviceID = in.readString();
-        serviceRendered = in.readString();
-        phoneNumber = in.readString();
-        Name = in.readString();
-        if (in.readByte() == 0) {
-            distanceCovered = null;
-        } else {
-            distanceCovered = in.readLong();
-        }
-        if (in.readByte() == 0) {
-            amountPaid = null;
-        } else {
-            amountPaid = in.readLong();
-        }
-        accepted = in.readString();
-        byte tmpStarted = in.readByte();
-        started = tmpStarted == 0 ? null : tmpStarted == 1;
-        byte tmpEnded = in.readByte();
-        ended = tmpEnded == 0 ? null : tmpEnded == 1;
-        timeStamp = in.readParcelable(Timestamp.class.getClassLoader());
-        status = in.readString();
-        if (in.readByte() == 0) {
-            hoursWorked = null;
-        } else {
-            hoursWorked = in.readLong();
-        }
-        arrived = in.readByte() != 0;
-        cancelRide = in.readByte() != 0;
-    }
+    private String paymentMethod;
 
     public GeneralJobData(GeoPoint serviceLocation, GeoPoint destination, GeoPoint serviceProviderLocation, String serviceID,
                           String phoneNumber, String Name, Long distanceCovered, Long amountPaid, String accepted, Boolean started,
@@ -91,6 +61,95 @@ public class GeneralJobData implements Parcelable {
         this.hoursWorked = hoursWorked;
         this.arrived = arrived;
         this.cancelRide = cancelRide;
+    }
+
+    protected GeneralJobData(Parcel in) {
+        serviceID = in.readString();
+        serviceRendered = in.readString();
+        phoneNumber = in.readString();
+        Name = in.readString();
+        if (in.readByte() == 0) {
+            distanceCovered = null;
+        } else {
+            distanceCovered = in.readLong();
+        }
+        if (in.readByte() == 0) {
+            amountPaid = null;
+        } else {
+            amountPaid = in.readLong();
+        }
+        paymentMethod = in.readString();
+        byte tmpStarted = in.readByte();
+        started = tmpStarted == 0 ? null : tmpStarted == 1;
+        byte tmpEnded = in.readByte();
+        ended = tmpEnded == 0 ? null : tmpEnded == 1;
+        timeStamp = in.readParcelable(Timestamp.class.getClassLoader());
+        status = in.readString();
+        if (in.readByte() == 0) {
+            hoursWorked = null;
+        } else {
+            hoursWorked = in.readLong();
+        }
+        accepted = in.readString();
+        arrived = in.readByte() != 0;
+        cancelRide = in.readByte() != 0;
+    }
+
+    public GeneralJobData(GeoPoint serviceLocation, GeoPoint destination, GeoPoint serviceProviderLocation, String serviceID,
+                          String phoneNumber, String Name, Long distanceCovered, Long amountPaid, String accepted, Boolean started,
+                          Boolean ended, String serviceRendered, Timestamp timeStamp, String status, Long hoursWorked, boolean arrived, boolean cancelRide, String paymentMethod) {
+        this.serviceLocation = serviceLocation;
+        this.destination = destination;
+        this.serviceProviderLocation = serviceProviderLocation;
+        this.serviceID = serviceID;
+        this.phoneNumber = phoneNumber;
+        this.Name = Name;
+        this.distanceCovered = distanceCovered;
+        this.amountPaid = amountPaid;
+        this.accepted = accepted;
+        this.started = started;
+        this.ended = ended;
+        this.serviceRendered = serviceRendered;
+        this.timeStamp = timeStamp;
+        this.status = status;
+        this.hoursWorked = hoursWorked;
+        this.arrived = arrived;
+        this.cancelRide = cancelRide;
+        this.paymentMethod = paymentMethod;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeString(serviceID);
+        dest.writeString(serviceRendered);
+        dest.writeString(phoneNumber);
+        dest.writeString(Name);
+        if (distanceCovered == null) {
+            dest.writeByte((byte) 0);
+        } else {
+            dest.writeByte((byte) 1);
+            dest.writeLong(distanceCovered);
+        }
+        if (amountPaid == null) {
+            dest.writeByte((byte) 0);
+        } else {
+            dest.writeByte((byte) 1);
+            dest.writeLong(amountPaid);
+        }
+        dest.writeString(paymentMethod);
+        dest.writeByte((byte) (started == null ? 0 : started ? 1 : 2));
+        dest.writeByte((byte) (ended == null ? 0 : ended ? 1 : 2));
+        dest.writeParcelable(timeStamp, flags);
+        dest.writeString(status);
+        if (hoursWorked == null) {
+            dest.writeByte((byte) 0);
+        } else {
+            dest.writeByte((byte) 1);
+            dest.writeLong(hoursWorked);
+        }
+        dest.writeString(accepted);
+        dest.writeByte((byte) (arrived ? 1 : 0));
+        dest.writeByte((byte) (cancelRide ? 1 : 0));
     }
 
     public GeoPoint getServiceLocation() {
@@ -165,12 +224,13 @@ public class GeneralJobData implements Parcelable {
         this.amountPaid = amountPaid;
     }
 
-    public String getAccepted() {
-        return accepted;
+    @Override
+    public int describeContents() {
+        return 0;
     }
 
-    public void setAccepted(String accepted) {
-        this.accepted = accepted;
+    public String getPaymentMethod() {
+        return paymentMethod;
     }
 
     public Boolean getStarted() {
@@ -213,6 +273,22 @@ public class GeneralJobData implements Parcelable {
         this.hoursWorked = hoursWorked;
     }
 
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public String getAccepted() {
+        return accepted;
+    }
+
+    public void setAccepted(String accepted) {
+        this.accepted = accepted;
+    }
+
+    public boolean isArrived() {
+        return arrived;
+    }
+
     public boolean isCancelRide() {
         return cancelRide;
     }
@@ -221,50 +297,8 @@ public class GeneralJobData implements Parcelable {
         this.cancelRide = cancelRide;
     }
 
-    public boolean isArrived() {
-        return arrived;
-    }
-
     public void setArrived(boolean arrived) {
         this.arrived = arrived;
     }
 
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-
-    @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        dest.writeString(serviceID);
-        dest.writeString(serviceRendered);
-        dest.writeString(phoneNumber);
-        dest.writeString(Name);
-
-        if (distanceCovered == null) {
-            dest.writeByte((byte) 0);
-        } else {
-            dest.writeByte((byte) 1);
-            dest.writeLong(distanceCovered);
-        }
-        if (amountPaid == null) {
-            dest.writeByte((byte) 0);
-        } else {
-            dest.writeByte((byte) 1);
-            dest.writeLong(amountPaid);
-        }
-        dest.writeString(accepted);
-        dest.writeByte((byte) (started == null ? 0 : started ? 1 : 2));
-        dest.writeByte((byte) (ended == null ? 0 : ended ? 1 : 2));
-        dest.writeParcelable(timeStamp, flags);
-        dest.writeString(status);
-        if (hoursWorked == null) {
-            dest.writeByte((byte) 0);
-        } else {
-            dest.writeByte((byte) 1);
-            dest.writeLong(hoursWorked);
-        }
-        dest.writeByte((byte) (arrived ? 1 : 0));
-        dest.writeByte((byte) (cancelRide ? 1 : 0));
-    }
 }

@@ -15,7 +15,6 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
@@ -81,6 +80,8 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
                             user.setUser_id(FirebaseAuth.getInstance().getUid());
                             user.setPhoneNumber(phoneNumber);
                             user.setNewUser(true);
+                            user.setRating("3.5");
+                            user.setWallet(0.0);
 
                             FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
                                     .setTimestampsInSnapshotsEnabled(true)
@@ -145,38 +146,57 @@ public class Enrollment extends AppCompatActivity implements View.OnClickListene
     @Override
     public void onClick(View v) {
 
-        switch (v.getId()) {
-            case R.id.register_btn: {
-                Log.d(TAG, "onClick: attempting to register.");
-                Toast.makeText(Enrollment.this, "Attempting to register", Toast.LENGTH_SHORT).show();
+        if (v.getId() == R.id.register_btn) {
+            Log.d(TAG, "onClick: attempting to register.");
+            Toast.makeText(Enrollment.this, "Attempting to register", Toast.LENGTH_SHORT).show();
 
-                //registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString(), phoneNumber.getText().toString());
+            //registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString(), phoneNumber.getText().toString());
 
-                //check for null valued EditText fields
-                if (!isEmpty(mEmail.getText().toString())
-                        && !isEmpty(mPassword.getText().toString())
-                        && !isEmpty(mConfirmPassword.getText().toString())) {
+            //check for null valued EditText fields
+            if (!isEmpty(mEmail.getText().toString())
+                    && !isEmpty(mPassword.getText().toString())
+                    && !isEmpty(mConfirmPassword.getText().toString())) {
 
-                    //check if passwords match
-                    if (doStringsMatch(mPassword.getText().toString(), mConfirmPassword.getText().toString())) {
+                //check if passwords match
+                if (doStringsMatch(mPassword.getText().toString(), mConfirmPassword.getText().toString())) {
 
-                        if (!isEmpty(phoneNumber.getText().toString())) {
-                            //Initiate registration task
-                            registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString(), phoneNumber.getText().toString(), fullName.getText().toString());
+                    if (!isEmpty(phoneNumber.getText().toString())) {
+                        String temp = phoneNumber.getText().toString();
+                        String phoneNum;
+                        if (temp.startsWith("0")) {
+                            phoneNum = "+234" + temp.substring(1);
+                            Log.d("start", "kdkdkdstarts with zero");
                         } else {
-                            Toast.makeText(Enrollment.this, "Please type your phone number", Toast.LENGTH_SHORT).show();
+                            phoneNum = "+234" + phoneNumber.getText().toString();
+                            Log.d("start", "kdkdkddoes not start with zero");
                         }
-                        //registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString());
+                        verifyPhoneNumber(mEmail.getText().toString(), mPassword.getText().toString(), phoneNum, fullName.getText().toString());
+                        //Initiate registration task
+                        //registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString(), phoneNumber.getText().toString(), fullName.getText().toString());
                     } else {
-                        Toast.makeText(Enrollment.this, "Passwords do not Match", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(Enrollment.this, "Please type your phone number", Toast.LENGTH_SHORT).show();
                     }
-
+                    //registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString());
                 } else {
-                    Toast.makeText(Enrollment.this, "You must fill out all the fields", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(Enrollment.this, "Passwords do not Match", Toast.LENGTH_SHORT).show();
                 }
-                break;
+
+            } else {
+                Toast.makeText(Enrollment.this, "You must fill out all the fields", Toast.LENGTH_SHORT).show();
             }
         }
+
+    }
+
+    private void verifyPhoneNumber(String email, String password, String phoneNumber, String fullName) {
+        Intent verifyphoneNumberAct = new Intent(Enrollment.this, VerifyPhoneNumber.class);
+        verifyphoneNumberAct.putExtra("email", email);
+        verifyphoneNumberAct.putExtra("password", password);
+        verifyphoneNumberAct.putExtra("phoneNumber", phoneNumber);
+        verifyphoneNumberAct.putExtra("fullName", fullName);
+
+        verifyphoneNumberAct.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(verifyphoneNumberAct);
 
     }
 }

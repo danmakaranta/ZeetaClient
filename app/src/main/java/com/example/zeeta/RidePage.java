@@ -27,9 +27,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
-import android.view.Window;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -232,6 +230,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
         clientRideRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
             @Override
             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                assert documentSnapshot != null;
                 if (documentSnapshot.exists()) {
                     boolean canceledRide = documentSnapshot.getBoolean("cancelRide");
                     boolean arrived = documentSnapshot.getBoolean("arrived");
@@ -275,7 +274,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                     } else if (journeyEnded && !endedJourneyNotification) {
                         endedJourneyNotification = true;
                         Toast.makeText(RidePage.this, "You have arrived your destination.", Toast.LENGTH_LONG).show();
-                        makePayment();
+
                     }
                 }
             }
@@ -283,29 +282,9 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
 
     }
 
-    private void makePayment() {
-        paymentOptions();
-    }
 
     private void paymentOptions() {
-        paymentOptionsDialog = new Dialog(this);
-        paymentOptionsDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        paymentOptionsDialog.setTitle("Payment options:");
-        paymentOptionsDialog.setContentView(R.layout.payment_options);
-        ImageView walletIcon = paymentOptionsDialog.findViewById(R.id.walletIcon);
-        TextView cardOptionTxt = paymentOptionsDialog.findViewById(R.id.cardOptionTxt);
-        TextView walletOptionTxt = paymentOptionsDialog.findViewById(R.id.walletOptionTxt);
-        TextView walletBalancetxt = paymentOptionsDialog.findViewById(R.id.waletBalance);
-        ImageView creditCIcon = paymentOptionsDialog.findViewById(R.id.creditCIcon);
-        walletIcon = paymentOptionsDialog.findViewById(R.id.walletIcon);
-        walletBalancetxt.setEnabled(false);
-        walletIcon.setEnabled(false);
 
-        //walletOptionTxt.setOnClickListener(v -> buyWithWallet());
-        // walletIcon.setOnClickListener(v -> buyWithWallet());
-        cardOptionTxt.setOnClickListener(v -> payWithCard());
-        creditCIcon.setOnClickListener(v -> payWithCard());
-        paymentOptionsDialog.show();
 
     }
 
@@ -401,7 +380,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                     stopTimer();
                     rideInformation.update("status", "Canceled");
                     customersJobDataOncloud.set(new GeneralJobData(journeyInfo.getServiceLocation(), journeyInfo.getDestination(), null, journeyInfo.getServiceID(),
-                            journeyInfo.getPhoneNumber(), "needs to be fixed", journeyInfo.getDistanceCovered(), (long) 0, "Accepted",
+                            journeyInfo.getPhoneNumber(), journeyInfo.getName(), journeyInfo.getDistanceCovered(), (long) 0, "Accepted",
                             false, false, "Taxi/Tricycle", journeyInfo.getTimeStamp(), "Canceled by You", (long) 0,
                             true, true)).addOnCompleteListener(new OnCompleteListener<Void>() {
                         @Override
@@ -409,7 +388,6 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                             if (task.isSuccessful()) {
                                 Intent intent = new Intent(RidePage.this, MapActivity.class).putExtra("ReRequest", journeyInfo.getServiceRendered());
                                 startActivity(intent);
-
                             }
                         }
                     });

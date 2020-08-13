@@ -66,7 +66,7 @@ public class DashBoard extends AppCompatActivity {
 
         logout.setOnClickListener(v -> {
             FirebaseAuth.getInstance().signOut();
-            startActivity(new Intent(getApplicationContext(), Signin.class));
+            startActivity(new Intent(getApplicationContext(), Login.class));
             overridePendingTransition(0, 0);
         });
 
@@ -142,7 +142,7 @@ public class DashBoard extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             waletref = FirebaseFirestore.getInstance()
                     .collection("Customers")
-                    .document(Objects.requireNonNull(getInstance().getUid())).collection("Wallet").document("ZeetaAccount");
+                    .document(Objects.requireNonNull(getInstance().getUid()));
         }
 
         if (waletref != null) {
@@ -152,7 +152,7 @@ public class DashBoard extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         DocumentSnapshot doc = task.getResult();
                         if (doc.exists()) {
-                            Long tempBalance = (Long) doc.getLong("balance");
+                            Long tempBalance = (Long) doc.getLong("wallet");
                             if (tempBalance != null) {
                                 waletBalance = tempBalance.doubleValue();
                                 dashBoardWallet.setText("Wallet :N" + waletBalance);
@@ -180,7 +180,7 @@ public class DashBoard extends AppCompatActivity {
                         userRating = tempRating;
                         dashBoardRating.setRating(Float.parseFloat(userRating));
                         phoneNumber = doc.getString("phoneNumber");
-                        customerName = doc.getString("name");
+                        customerName = doc.getString("username");
                         dashBoardCustomerName.setText(customerName);
                         dashBoardPhoneNumber.setText(phoneNumber);
                     }

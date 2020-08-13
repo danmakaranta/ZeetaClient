@@ -39,11 +39,13 @@ import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -143,6 +145,19 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     public LocationManager locationManager;
     public Criteria criteria;
     public String bestProvider;
+
+    //Pricing rates for services
+    private double technician = 0;
+    private double fashionDesignerNewFabric = 0;
+    private double fashionDesignerCorrection = 0;
+    private double healthWorker = 0;
+    private double transport1 = 0;
+    private double transport2 = 0;
+    private double transport3 = 0;
+    private double bikeDelivery1 = 0;
+    private double bikeDelivery2 = 0;
+    private double bikeDelivery3 = 0;
+
     /**
      * GeoDataClient wraps our service connection to Google Play services and provides access
      * to the Google Places API for Android.
@@ -150,6 +165,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     protected GeoDataClient mGeoDataClient;
     AutoCompleteTextView pickET;
     AutoCompleteTextView destinationET;
+    private Spinner paymentSelection;
+    private ImageView selectedPaymentIcon;
     Location currentLocation;
     Intent serviceIntent;
     //firestore access for cloud storage
@@ -191,14 +208,13 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private int tyingNum;
     //progress bars for geolocation
     private ProgressBar pickUpP;
-    private String serviceProviderPhone;
-    private GeoPoint serviceProviderLocation;
     private GeoPoint pickupLocation;
     private GeoPoint destination;
     private ProgressBar destinationPBar;
     // custom driverDialog
     private Dialog driverDialog;
     private TextView rideEst;
+    private TextView rideClass;
     private LoaderManager priceLoaderManager;
     private int rideEstimateAmount;
     private double priceEstimate = 0.0;
@@ -209,7 +225,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     Timestamp timeStamp;
     private String serv = null;
     private long distanceCovered;
-    private String serviceProviderName;
     private PlaceAutocompleteAdapter mAdapter;
     private AutoCompleteTextView mAutocompleteView;
     private TextView mPlaceDetailsText;
@@ -223,7 +238,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private String destinationText;
     private boolean navOpened = false;
     private Button cancelRequestBtn;
-    private DocumentReference acceptanceUpdate;
     private DocumentReference clientRideRequest;
     private DocumentReference customerRequest;
     private NavigationView navigationView;
@@ -277,6 +291,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private int lookingForMechanic = 0;
     private GeoQuery geoQueryTricycle;
     private GeoQuery geoQueryMechanic;
+    private GeoQuery geoQueryFashionDesiner;
     private GeoQuery geoQueryTaxi;
     private GeoQuery geoQueryBikeDelivery;
     private GeneralJobData ridedata;
@@ -286,8 +301,14 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private boolean tricycleSearchInProgress = false;
     private int lookingForTricycle = 0;
     private boolean mechanicSearchInProgress = false;
-    private boolean deliverySearchInProgress = false;
     private int lookingForDeliveryBikes = 0;
+    private boolean fashionDesignerSearchInProgress = false;
+    private boolean deliverySearchInProgress = false;
+    private int lookingForFashionDesigners = 0;
+    private String selectedPaymentType;
+    private String paymentType;
+    private String serviceProviderName;
+    private String serviceProviderPhone;
 
     public static String getLocalityName(Context context, double latitude, double longitude) throws IOException {
         Geocoder geocoder = new Geocoder(context, Locale.getDefault());
@@ -514,8 +535,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     GeoPoint servicePgp = new GeoPoint(ltl.latitude, ltl.longitude);
                     if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
                         getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString(), servicePgp);
+                    } else if (servType.equalsIgnoreCase("Fashion Designer")) {
+                        goToFashioDesignerPage(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
                     } else {
-                        getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString());
+                        getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
                     }
 
                 } catch (IOException e) {
@@ -721,6 +744,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         nemaProgressDialog = new ProgressDialog(this);
         requestProgressDialog.setMessage("Sending Request....");
         nemaProgressDialog.setMessage("Searching.....");
+
         serviceFound = false;
         keyIDs = new ArrayList();
         keysFound = new ArrayList<StaffFound>();
@@ -741,6 +765,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         driverDialog.setContentView(R.layout.ride_request_page);
         driverDialog.setTitle("Send Request?");
         rideEst = driverDialog.findViewById(R.id.ride_estimate);
+        rideClass = driverDialog.findViewById(R.id.vehicle_class);
         priceLoaderManager = getLoaderManager();
 
         if (priceLoaderManager.getLoader(1) != null) {
@@ -784,8 +809,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     return true;
                 case R.id.dashboard_button:
                     Intent dashBIntent = new Intent(MapActivity.this, DashBoard.class);
-                    dashBIntent.putExtra("rating", "4.5");
-                    dashBIntent.putExtra("walletBalance", 5000.0);
                     startActivity(dashBIntent);
                     return true;
                 case R.id.services_list:
@@ -802,6 +825,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             }
             return false;
         });
+        //navigationView.getMenu().getItem(2).setVisible(false);
 
         navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
             @Override
@@ -826,9 +850,13 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         }
                         navigationView.setVisibility(View.GONE);
                         return true;
-                    case R.id.nurse:
-                        nemaProgressDialog.show();
-                        //getNurse();
+                    case R.id.fashion_designer:
+                        if (!fashionDesignerSearchInProgress) {
+                            nemaProgressDialog.show();
+                            getfashionDesigners();
+                        } else {
+                            Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
+                        }
                         navigationView.setVisibility(View.GONE);
                         return true;
                     case R.id.mechanicService:
@@ -840,7 +868,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         }
                         navigationView.setVisibility(View.GONE);
                         return true;
-                    case R.id.bikeDelivery:
+                   /* case R.id.bikeDelivery:
                         if (!deliverySearchInProgress) {
                             nemaProgressDialog.show();
                             getDeliveryBikes();
@@ -848,7 +876,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                             Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
                         }
                         navigationView.setVisibility(View.GONE);
-                        return true;
+                        return true;*/
                     case R.id.logout:
                         //blah .....
                         return true;
@@ -859,6 +887,144 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         });
 
     }
+
+    private void getfashionDesigners() {
+
+        fashionDesignerSearchInProgress = true;
+
+        DatabaseReference refFashionDesigner = null;
+        refFashionDesigner = FirebaseDatabase.getInstance().getReference(locality).child("Fashion Designer");
+        GeoFire geoFireFashionDesigner = null;
+        geoFireFashionDesigner = new GeoFire(refFashionDesigner);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        GeoFire finalGeoFireFashionDesigner = geoFireFashionDesigner;
+        mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
+            @Override
+            public void onComplete(@NonNull Task<android.location.Location> task) {
+                if (task.isSuccessful()) {
+                    Location location = task.getResult();
+
+                    if (location != null) {
+                        geoQueryFashionDesiner = finalGeoFireFashionDesigner.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
+
+                    } else {
+                        geoQueryFashionDesiner = finalGeoFireFashionDesigner.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
+                    }
+
+
+                    geoQueryFashionDesiner.addGeoQueryEventListener(new GeoQueryEventListener() {
+
+                        @Override
+                        public void onKeyEntered(String key, GeoLocation location) {
+
+                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
+                            if (engaged(key)) {
+
+                            } else {
+                                if (markerList.size() <= 0) {
+                                    String markerTitle;
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        String temp = " " + timeApart(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(location.latitude, location.longitude)) + " minutes away";
+
+                                        try {// nothing more but to slow down execution a bit to get results before proceeding
+                                            Thread.sleep(2000);
+                                        } catch (InterruptedException excp) {
+                                            excp.printStackTrace();
+                                        }
+                                        markerTitle = "Fashion Designer" + temp;
+                                    } else {
+                                        markerTitle = "Fashion Designer, 5 minutes away!";
+                                    }
+                                    nemaProgressDialog.dismiss();
+                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(markerTitle));
+
+                                    staffMarker.setTag(key);
+                                    //choose icon type for fashion designer
+                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.fashiondesigner));
+                                    staffMarker.setSnippet("Fashion Designer");
+
+                                    markerList.add(staffMarker);
+                                    markerNameList.add(key);
+                                    staffMarker.showInfoWindow();
+                                    updateMarkersRunnable();
+                                } else {
+                                    if (!markerNameList.contains(key)) {
+                                        nemaProgressDialog.dismiss();
+                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
+                                        staffMarker.setTag(key);
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.fashiondesigner));
+                                        staffMarker.setSnippet("Fashion Designer");
+                                        moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
+                                        markerList.add(staffMarker);
+                                        markerNameList.add(key);
+                                        staffMarker.showInfoWindow();
+                                        updateMarkersRunnable();
+                                    }
+                                }
+                            }
+
+                        }
+
+                        @Override
+                        public void onKeyExited(String key) {
+                            for (int i = 0; i < markerList.size(); i++) {
+                                if (markerList.get(i).getTag() != null) {
+                                    if (Objects.requireNonNull(markerList.get(i).getTag()).toString().equalsIgnoreCase(key)) {
+                                        markerNameList.remove(key);
+                                        if (markerNameList.contains(key)) {
+                                            markerNameList.remove(key);
+                                            markerList.get(i).remove();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onKeyMoved(String key, GeoLocation location) {
+
+                        }
+
+                        @Override
+                        public void onGeoQueryReady() {
+
+                            if (lookingForFashionDesigners <= 5) {
+                                getfashionDesigners();
+                                lookingForFashionDesigners++;
+                            }
+                        }
+
+                        @Override
+                        public void onGeoQueryError(DatabaseError error) {
+
+                        }
+                    });
+
+                }
+            }
+        });
+
+    }
+
+    private void goToFashioDesignerPage(String id, LatLng position) {
+        Intent fashionIntent = new Intent(MapActivity.this, Fashion_samples.class);
+        fashionIntent.putExtra("ID", id);
+        fashionIntent.putExtra("Longitude", currentLocation.getLongitude());
+        fashionIntent.putExtra("Latitude", currentLocation.getLatitude());
+        startActivity(fashionIntent);
+
+    }
+
 
     private void getTricycle() {
 
@@ -978,7 +1144,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                 getTricycle();
                                 lookingForTricycle++;
                             }
-
                         }
 
                         @Override
@@ -993,6 +1158,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     private void getDeliveryBikes() {
+
         deliverySearchInProgress = true;
 
         DatabaseReference refDeliveryService = null;
@@ -1883,7 +2049,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 if (task.isSuccessful()) {
                     DocumentSnapshot doc = task.getResult();
                     customerPhoneNumber = doc.getString("phoneNumber");
-                    customerName = doc.getString("name");
+                    customerName = doc.getString("username");
                 }
             }
         });
@@ -1891,7 +2057,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
 
-    private void sendClientRequest(String id) {
+    private void sendClientRequest(String id, LatLng position) {
 
         DocumentReference clientRequest = FirebaseFirestore.getInstance()
                 .collection("Users")
@@ -1906,7 +2072,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 if (task.isSuccessful()) {
                     requestProgressDialog.dismiss();
                     Toast.makeText(getApplicationContext(), "Your request has been sent, please hold on!", Toast.LENGTH_LONG).show();
-                    listenForUpdate(id);
+                    listenForUpdate(id, position);
                     Log.e(TAG, "sendClientRequest: customer request sent!");
                 } else {
                     Log.e(TAG, "sendClientRequest: error sending customer request!");
@@ -1916,7 +2082,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     }
 
-    private void listenForUpdate(String id) {
+    private void listenForUpdate(String id, LatLng position) {
+        DocumentReference acceptanceUpdate;
 
         acceptanceUpdate = FirebaseFirestore.getInstance()
                 .collection("Users")
@@ -1937,8 +2104,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     if (documentSnapshot.getString("accepted").equals("Accepted") && !notifyAcceptance[0]) {
                         Toast.makeText(MapActivity.this, "Your request have been accepted! Hold on for Service Provider!", Toast.LENGTH_LONG).show();
                         notifyAcceptance[0] = true;
-                        cancelRequestBtn.setVisibility(View.VISIBLE);
-                        setJobDataOnCloud(id);
+
+                        setJobDataOnCloud(id, position);
 
                     } else if (documentSnapshot.getString("accepted").equals("Declined")) {
                         //clear your request since it has been declined
@@ -1958,9 +2125,31 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         });
     }
 
-    private void sendRideRequest(String id, GeoPoint jouneyPickup, GeoPoint journeyDestination, Long amountTobePaid, GeoPoint serviceProviderGp, String serviceType) {
+    private void sendRideRequest(String id, GeoPoint jouneyPickup, GeoPoint journeyDestination, Long amountTobePaid, GeoPoint serviceProviderGp, String serviceType, String paymentType) {
         final int[] counter = {0};
         timeStamp = Timestamp.now();
+        serviceProviderPhone = "";
+        serviceProviderName = "";
+        DocumentReference serviceProviderData = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id);
+        serviceProviderData.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot doc = task.getResult();
+                    serviceProviderName = (String) doc.get("name");
+                    serviceProviderPhone = (String) doc.get("phoneNumber");
+                }
+
+            }
+        });
+
+        try {// nothing more but to slow down execution a bit to get results before proceeding
+            Thread.sleep(2000);
+        } catch (InterruptedException excp) {
+            excp.printStackTrace();
+        }
 
         clientRideRequest = FirebaseFirestore.getInstance()
                 .collection("Users")
@@ -1970,11 +2159,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .document(FirebaseAuth.getInstance().getUid()).collection("Request").document(Objects.requireNonNull("ongoing"));
 
 
-        DocumentReference spJobData = FirebaseFirestore.getInstance()
-                .collection("Users")
-                .document(id).collection("RideData").document(FirebaseAuth.getInstance().getUid());
-
-
         final DocumentReference customerjobData = FirebaseFirestore.getInstance()
                 .collection("Customers")
                 .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("JobData").document(id);
@@ -1982,93 +2166,90 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         GeneralJobData generalJobData = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, FirebaseAuth.getInstance().getUid(),
                 customerPhoneNumber, customerName, (long) 0, (long) amountTobePaid, "Awaiting",
-                false, false, serviceType, timeStamp, "Awaiting", (long) 0, false, false);
-        spJobData.set(generalJobData).addOnCompleteListener(new OnCompleteListener<Void>() {
+                false, false, serviceType, timeStamp, "Awaiting", (long) 0, false, false, paymentType);
+
+        clientRideRequest.set(generalJobData).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
-                clientRideRequest.set(generalJobData).addOnCompleteListener(new OnCompleteListener<Void>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        if (task.isSuccessful()) {
-                            driverDialog.dismiss();
-                            Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for your driver.", Toast.LENGTH_LONG).show();
-                            clientRideRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
-                                @Override
-                                public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                                    counter[0] = counter[0] + 1;
-                                    if (e != null) {
-                                        Log.w(TAG, "Listen failed.", e);
-                                        return;
+                if (task.isSuccessful()) {
+                    if (requestProgressDialog.isShowing()) {
+                        requestProgressDialog.dismiss();
+                    }
+                    driverDialog.dismiss();
+                    Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for your driver.", Toast.LENGTH_LONG).show();
+                    clientRideRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+                        @Override
+                        public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                            counter[0] = counter[0] + 1;
+                            if (e != null) {
+                                Log.w(TAG, "Listen failed.", e);
+                                return;
+                            }
+                            if (documentSnapshot != null && documentSnapshot.exists()) {
+
+                                String accepted = documentSnapshot.getString("accepted");
+                                boolean started = documentSnapshot.getBoolean("started");
+                                boolean arrivedPickUp = documentSnapshot.getBoolean("arrived");
+                                boolean cancelRide = documentSnapshot.getBoolean("cancelRide");
+                                boolean endedRide = documentSnapshot.getBoolean("ended");
+
+                                Handler handler = new Handler();
+                                handler.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
                                     }
+                                }, 2000);
 
-                                    if (documentSnapshot != null && documentSnapshot.exists()) {
+                                if (accepted != null) {
+                                    if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp && !notifiedRiderA) {
 
-                                        String accepted = documentSnapshot.getString("accepted");
-                                        boolean started = documentSnapshot.getBoolean("started");
-                                        boolean arrivedPickUp = documentSnapshot.getBoolean("arrived");
-                                        boolean cancelRide = documentSnapshot.getBoolean("cancelRide");
-                                        boolean endedRide = documentSnapshot.getBoolean("ended");
+                                        ridedata = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, id,
+                                                serviceProviderPhone, serviceProviderName, (long) 0, (long) amountTobePaid, "Accepted",
+                                                false, false, serviceType, timeStamp, "Accepted", (long) 0, false, false);
 
-                                        Handler handler = new Handler();
-                                        handler.postDelayed(new Runnable() {
+                                        customerjobData.set(ridedata).addOnCompleteListener(new OnCompleteListener<Void>() {
                                             @Override
-                                            public void run() {
-                                            }
-                                        }, 2000);
+                                            public void onComplete(@NonNull Task<Void> task) {
+                                                if (task.isSuccessful()) {
+                                                    final AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
+                                                    builder.setMessage("Your driver is few minutes to your pick up")
+                                                            .setCancelable(false);
+                                                    final AlertDialog alert = builder.create();
 
-                                        if (accepted != null) {
-                                            if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp && !notifiedRiderA) {
-
-                                                ridedata = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, id,
-                                                        serviceProviderPhone, serviceProviderName, (long) 0, (long) amountTobePaid, "Accepted",
-                                                        false, false, serviceType, timeStamp, "Accepted", (long) 0, false, false);
-
-                                                customerjobData.set(ridedata).addOnCompleteListener(new OnCompleteListener<Void>() {
-                                                    @Override
-                                                    public void onComplete(@NonNull Task<Void> task) {
-                                                        if (task.isSuccessful()) {
-                                                            final AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
-                                                            builder.setMessage("Your driver is few minutes to your pick up")
-                                                                    .setCancelable(false);
-                                                            final AlertDialog alert = builder.create();
-
-                                                            new CountDownTimer(3000, 1000) {
-                                                                @Override
-                                                                public void onTick(long millisUntilFinished) {
-                                                                    alert.show();
-                                                                }
-
-                                                                @Override
-                                                                public void onFinish() {
-                                                                    alert.dismiss();
-                                                                    notifiedRiderA = true;
-                                                                    startRidePage();
-                                                                }
-                                                            }.start();
+                                                    new CountDownTimer(3000, 1000) {
+                                                        @Override
+                                                        public void onTick(long millisUntilFinished) {
+                                                            alert.show();
                                                         }
-                                                    }
-                                                });
 
-                                            } else if (accepted.equalsIgnoreCase("Declined")) {
+                                                        @Override
+                                                        public void onFinish() {
+                                                            alert.dismiss();
+                                                            notifiedRiderA = true;
+                                                            startRidePage();
+                                                        }
+                                                    }.start();
+                                                }
+                                            }
+                                        });
 
-                                                clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                                    @Override
-                                                    public void onComplete(@NonNull Task<Void> task) {
-                                                        makeLongToast("Your request have been declined, please choose another Vehicle");
-                                                        Log.w(TAG, "Ride Request declined, clear request data.");
-                                                        customerjobData.update("cancelRide", true);
-                                                        customerjobData.update("status", "Declined");
-                                                    }
-                                                });
+                                    } else if (accepted.equalsIgnoreCase("Declined")) {
+
+                                        clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                            @Override
+                                            public void onComplete(@NonNull Task<Void> task) {
+                                                makeLongToast("Your request have been declined, please choose another Vehicle");
+                                                Log.w(TAG, "Ride Request declined, clear request data.");
 
                                             }
-                                        }
+                                        });
+
                                     }
                                 }
-                            });
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         });
 
@@ -2138,24 +2319,12 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
 
-    private void getServiceProviderDetails(String id) throws IOException {
+    private void getServiceProviderDetails(String id, LatLng position) throws IOException {
 
         // custom dialog
         final Dialog dialog = new Dialog(MapActivity.this);
 
-        // Create a storage reference from our app
-        StorageReference mStorage = FirebaseStorage.getInstance().getReference().child("paicOqj8BqN76qlKXhv56aIWb9k2.jpg");
-
-        final Uri[] downloadUri = new Uri[1];
-        mStorage.getDownloadUrl().addOnCompleteListener(new OnCompleteListener<Uri>() {
-            @Override
-            public void onComplete(@NonNull Task<Uri> task) {
-                if (task.isSuccessful()) {
-                    downloadUri[0] = task.getResult();
-                }
-            }
-        });
-
+       
         DocumentReference serviceProviderDetails = null;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
             serviceProviderDetails = FirebaseFirestore.getInstance()
@@ -2169,8 +2338,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             @Override
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
-                    serviceProviderPhone = "";
-                    serviceProviderName = "";
+                    String serviceProviderPhone = "";
+                    String serviceProviderName = "";
                     hourlyRate = 0;
                     serviceRendered = "";
                     DocumentSnapshot doc = task.getResult();
@@ -2181,8 +2350,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     String jobType = (String) doc.get("profession");
                     Long hourly = (Long) doc.get("hourlyRate");
 
-                    serviceProviderPhone = number;
-                    serviceProviderName = name;
                     hourlyRate = hourly;
                     serviceRendered = jobType;
 
@@ -2220,7 +2387,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         @Override
                         public void onSuccess(Uri uri) {
                             // Got the download URL for 'profile pic'
-                            Picasso.with(dialog.getContext()).load(uri).fit().into(pic);
+                            //Picasso.with(dialog.getContext()).load(uri).fit().into(pic);
+                            Picasso.get().load(uri).fit().into(pic);
                         }
                     }).addOnFailureListener(new OnFailureListener() {
                         @Override
@@ -2229,8 +2397,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         }
                     });
 
-                    Button btnYes = (Button) dialog.findViewById(R.id.buttonYes);
-                    Button btnNo = (Button) dialog.findViewById(R.id.buttonNo);
+                    Button btnYes = dialog.findViewById(R.id.buttonYes);
+                    Button btnNo = dialog.findViewById(R.id.buttonNo);
                     dialog.show();
 
                     btnYes.setOnClickListener(new View.OnClickListener() {
@@ -2238,10 +2406,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         public void onClick(View v) {
                             if (engaged(id)) {
                                 Toast.makeText(MapActivity.this, "The Service provider is engaged already", Toast.LENGTH_LONG).show();
-
                             } else {
                                 //setJobDataOnCloud(id);
-                                sendClientRequest(id);
+                                sendClientRequest(id, position);
                             }
                             dialog.dismiss();
                         }
@@ -2259,6 +2426,45 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         });
 
+    }
+
+    private void updatePricing() {
+        DocumentReference rates = FirebaseFirestore.getInstance()
+                .collection("Rate")
+                .document("costOfService");
+        rates.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot doc = task.getResult();
+                    Long tech = doc.getLong("technicalArtisan");
+                    Long fashion1 = doc.getLong("fashionDesignerCorrection");
+                    Long fashion2 = doc.getLong("fashionDesignerNewFabric");
+                    Long health = doc.getLong("healthWorker");
+                    Long bikeDeliv1 = doc.getLong("bikeDelivery1");
+                    Long bikeDeliv2 = doc.getLong("bikeDelivery2");
+                    Long bikeDeliv3 = doc.getLong("bikeDelivery3");
+                    Long transp1 = doc.getLong("transportPerKm1");
+                    Long transp2 = doc.getLong("transportPerKm2");
+                    Long transp3 = doc.getLong("transportPerKm3");
+
+                    technician = tech.doubleValue();
+                    fashionDesignerNewFabric = fashion2.doubleValue();
+                    fashionDesignerCorrection = fashion1.doubleValue();
+                    healthWorker = health.doubleValue();
+                    transport1 = transp1.doubleValue();
+                    transport2 = transp2.doubleValue();
+                    transport3 = transp3.doubleValue();
+                    bikeDelivery1 = bikeDeliv1.doubleValue();
+                    bikeDelivery2 = bikeDeliv2.doubleValue();
+                    bikeDelivery3 = bikeDeliv3.doubleValue();
+
+                    Log.d(TAG, "Technician: " + technician);
+
+                }
+
+            }
+        });
     }
 
     private void initMap() {// for initializing the map
@@ -2298,8 +2504,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             GeoPoint servicePgp = new GeoPoint(ltl.latitude, ltl.longitude);
             if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
                 getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString(), servicePgp);
+            } else if (servType.equalsIgnoreCase("Fashion Designer")) {
+                goToFashioDesignerPage(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
             } else {
-                getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString());
+                getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
             }
 
         } catch (IOException e) {
@@ -2308,9 +2516,27 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     }
 
-    private void setJobDataOnCloud(String id) {
+    private void setJobDataOnCloud(String id, LatLng position) {
         DocumentReference spJobData = null;
         DocumentReference jobData = null;
+        GeoPoint serviceProviderLocation = new GeoPoint(position.latitude, position.longitude);
+        final String[] serviceProviderPhone = new String[1];
+        final String[] serviceProviderName = new String[1];
+        DocumentReference serviceProviderData = FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(id);
+        serviceProviderData.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot doc = task.getResult();
+                    serviceProviderName[0] = (String) doc.get("name");
+                    serviceProviderPhone[0] = (String) doc.get("phoneNumber");
+                }
+
+            }
+        });
+
         jobData = FirebaseFirestore.getInstance()
                 .collection("Customers")
                 .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("JobData").document(id);
@@ -2318,7 +2544,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .collection("Users")
                 .document(id).collection("JobData").document(FirebaseAuth.getInstance().getUid());
 
-        jobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), destination, serviceProviderLocation, id, serviceProviderPhone, serviceProviderName, (long) 0, (long) 0, "Awaiting",
+
+        jobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), destination, serviceProviderLocation, id, serviceProviderPhone[0], serviceProviderName[0], (long) 0, (long) 0, "Awaiting",
                 false, false, serviceRendered, timeStamp, "Awaiting", (long) 0, true, false))
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
@@ -2387,46 +2614,86 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     .document(id);
         }
 
+        paymentType = "";
+
 
         driverDetails.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
 
                 if (task.isSuccessful()) {
-                    serviceProviderPhone = "";
-                    serviceProviderName = "";
                     pickupLocation = null;
                     destination = null;
-                    serviceProviderLocation = null;
+                    GeoPoint serviceProviderLocation = null;
                     serviceRendered = "";
+                    String[] paymentOptions = getResources().getStringArray(R.array.payment_methods);
                     destinationET = driverDialog.findViewById(R.id.destination_input);
+                    destinationET.setText("");
                     pickET = driverDialog.findViewById(R.id.pickup_input);
                     rideEst = driverDialog.findViewById(R.id.ride_estimate);
+                    rideClass = driverDialog.findViewById(R.id.vehicle_class);
+                    paymentSelection = (Spinner) driverDialog.findViewById(R.id.payment_selection);
+                    selectedPaymentIcon = driverDialog.findViewById(R.id.selected_payment_icon);
+                    ArrayAdapter arrayAdapter = new ArrayAdapter(MapActivity.this, android.R.layout.simple_spinner_item, paymentOptions);
+                    arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                    paymentSelection.setAdapter(arrayAdapter);
+
+
+                    paymentSelection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                            selectedPaymentType = paymentSelection.getSelectedItem().toString();
+                            paymentType = "";
+                            if (selectedPaymentType.equalsIgnoreCase("ATM Card")) {
+                                paymentSelection.setSelection(1);
+                                paymentType = "ATM Card";
+                                selectedPaymentIcon.setImageResource(R.drawable.creditcard24);
+                            } else if (selectedPaymentType.equalsIgnoreCase("Cash")) {
+                                paymentType = "Cash";
+                                paymentSelection.setSelection(2);
+                                selectedPaymentIcon.setImageResource(R.drawable.cash);
+                            } else if (selectedPaymentType.equalsIgnoreCase("Wallet")) {
+                                paymentType = "Wallet";
+                                paymentSelection.setSelection(3);
+                                selectedPaymentIcon.setImageResource(R.drawable.wallet24);
+                            } else if (selectedPaymentType.equalsIgnoreCase("Select Payment")) {
+                                paymentSelection.setSelection(0);
+                                selectedPaymentIcon.setImageResource(R.drawable.zeetamaxxx);
+                                paymentType = "";
+                            }
+
+                        }
+
+                        @Override
+                        public void onNothingSelected(AdapterView<?> parent) {
+
+                        }
+                    });
 
                     pickET.setAdapter(new PlaceAutoSuggestionAdapter(MapActivity.this, android.R.layout.simple_list_item_1));
                     destinationET.setAdapter(new PlaceAutoSuggestionAdapter(MapActivity.this, android.R.layout.simple_list_item_1));
-
 
                     //fetch driver details
                     DocumentSnapshot doc = task.getResult();
                     String vehicleType = (String) doc.get("vehicleType");
                     String number = (String) doc.get("phoneNumber");
                     String name = (String) doc.get("name");
+                    String vehicleClass = (String) doc.get("vehicleClass");
 
                     String rating = (String) doc.get("rating");
                     String vehicleNumber = (String) doc.get("vehicleNumber");
 
                     //assign variable for update
                     serviceRendered = serv;
-                    serviceProviderPhone = number;
-                    serviceProviderName = name;
+
+                    rideClass.setText(vehicleClass);
 
                     // hide all the progress bars until when needed
                     pickUpP.setVisibility(View.INVISIBLE);
                     destinationPBar.setVisibility(View.INVISIBLE);
 
                     TextView textName = (TextView) driverDialog.findViewById(R.id.driver_name);
-                    textName.setText("" + serviceProviderName);
+                    textName.setText("" + name);
                     TextView textVehicleType = (TextView) driverDialog.findViewById(R.id.vehicle_type);
                     textVehicleType.setText("" + vehicleType);
                     TextView textVehicleNumber = (TextView) driverDialog.findViewById(R.id.vehicle_licence);
@@ -2480,7 +2747,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                             if (destination != null && pickupLocation != null) {
                                 hideSoftKeyboard(v);
                                 startRideEstimation();
-
                             }
                         }
                     });
@@ -2503,15 +2769,16 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     @Override
                     public void onClick(View v) {
                         destinationText = destinationET.getText().toString();
-                        sendRideRequest(id, pickupLocation, destination, (long) rideEstimateAmount, servicePLocation, "Taxi");
-
+                        if (paymentType != null && !paymentType.isEmpty()) {
+                            requestProgressDialog.show();
+                            sendRideRequest(id, pickupLocation, destination, (long) rideEstimateAmount, servicePLocation, "Taxi", paymentType);
+                        } else {
+                            Toast.makeText(MapActivity.this, "You need to select a payment method", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
-
             }
-
         });
-
     }
 
     @Override
@@ -2522,7 +2789,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     @Override
     public void onLoadFinished(Loader<String> loader, String data) {
         rideEst.setText(data);
-        String temp = data;
         rideEstimateAmount = getPriceInteger(data);
 
     }
@@ -2720,6 +2986,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
 
             Log.d(TAG, "getDeviceLocation: getting the device current location");
+            updateCustomerDetails();
+
+            updatePricing();
 
             mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MapActivity.this);
 
