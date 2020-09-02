@@ -25,7 +25,7 @@
             android:icon="@drawable/mechanic"
             android:title="@string/mechanic" />
         <item
-            android:id="@+id/plummingService"
+            android:id="@+id/plumbingService"
             android:icon="@drawable/pipeline"
             android:title="@string/plumbing" />
         <!-- <item
@@ -49,7 +49,7 @@
     </group>
 
     <item
-        android:id="@+id/logout"
+        android:id="@+id/exit_app"
         android:icon="@drawable/logout"
         android:title="@string/exit" />
 

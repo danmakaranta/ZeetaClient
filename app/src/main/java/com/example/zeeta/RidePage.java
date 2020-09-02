@@ -114,6 +114,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
     private DocumentReference clientRideRequest;
     private MarkerOptions markerOption;
     private MarkerOptions driverMarkerOption;
+    private Marker driverMarker;
     private boolean arrivalNotification = false;
     private boolean startedJourneyNotification = false;
     private boolean endedJourneyNotification = false;
@@ -227,6 +228,12 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
 
     private void listenforUpdateAndRespond() {
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            rideInformation = FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(journeyInfo.getServiceID()).collection("Request").document("ongoing");
+        }
+
         clientRideRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
             @Override
             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
@@ -252,13 +259,20 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                             @Override
                             public void onTick(long millisUntilFinished) {
                                 alert.show();
-                                rideInformation.update("status", "Canceled");
+                                rideInformation.update("status", "Canceled").addOnCompleteListener(new OnCompleteListener<Void>() {
+                                    @Override
+                                    public void onComplete(@NonNull Task<Void> task) {
+                                        if (task.isSuccessful()) {
+
+                                            cancelRide();
+                                        }
+                                    }
+                                });
                             }
 
                             @Override
                             public void onFinish() {
-                                alert.dismiss();
-                                cancelRide();
+
                             }
                         }.start();
                     }
@@ -366,7 +380,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
             rideInformation = FirebaseFirestore.getInstance()
                     .collection("Users")
-                    .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("Request").document("ongoing");
+                    .document(journeyInfo.getServiceID()).collection("Request").document("ongoing");
         }
 
         DocumentReference customersJobDataOncloud = FirebaseFirestore.getInstance()
@@ -379,15 +393,15 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                 if (task.isSuccessful()) {
                     stopTimer();
                     rideInformation.update("status", "Canceled");
-                    customersJobDataOncloud.set(new GeneralJobData(journeyInfo.getServiceLocation(), journeyInfo.getDestination(), null, journeyInfo.getServiceID(),
-                            journeyInfo.getPhoneNumber(), journeyInfo.getName(), journeyInfo.getDistanceCovered(), (long) 0, "Accepted",
-                            false, false, "Taxi/Tricycle", journeyInfo.getTimeStamp(), "Canceled by You", (long) 0,
-                            true, true)).addOnCompleteListener(new OnCompleteListener<Void>() {
+                    customersJobDataOncloud.set((new GeneralJobData(journeyInfo.getServiceLocation(), journeyInfo.getDestination(), null, journeyInfo.getServiceID(),
+                            journeyInfo.getPhoneNumber(), journeyInfo.getName(), (long) 0, (long) 0, "Accepted",
+                            false, false, journeyInfo.getServiceRendered(), journeyInfo.getTimeStamp(), "Completed", (long) 0, true, true, "Cash"))).addOnCompleteListener(new OnCompleteListener<Void>() {
                         @Override
                         public void onComplete(@NonNull Task<Void> task) {
                             if (task.isSuccessful()) {
-                                Intent intent = new Intent(RidePage.this, MapActivity.class).putExtra("ReRequest", journeyInfo.getServiceRendered());
-                                startActivity(intent);
+                               /* Intent intent = new Intent(RidePage.this, MapActivity.class).putExtra("ReRequest", journeyInfo.getServiceRendered());
+                                startActivity(intent);*/
+                                finish();
                             }
                         }
                     });
@@ -450,6 +464,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                 gp.getLongitude()
         );
 
+
         DirectionsApiRequest directions = new DirectionsApiRequest(mGeoApiContext);
 
         directions.alternatives(false);
@@ -502,7 +517,6 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
 
                     // This loops through all the LatLng coordinates of ONE polyline.
                     for (com.google.maps.model.LatLng latLng : decodedPath) {
-
 
                         newDecodedPath.add(new LatLng(
                                 latLng.lat,
@@ -621,9 +635,15 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                         .anchor(0.0f, 1.0f)
                         .position(latLng).title("Driver");
 
+                /*Marker driver = mMap.addMarker(new MarkerOptions().position(new LatLng(latitude, longitude)).title("Driver"));
+                driver.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.car64));
+                driver.setAnchor(0.0f, 1.0f);*/
+
+
                 googleMap.addMarker(driverMarkerOption);
                 //googleMap.getUiSettings().setMyLocationButtonEnabled(true);
                 googleMap.getUiSettings().setZoomControlsEnabled(true);
+
                 // Updates the location and zoom of the MapView
                 CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng, 15);
                 googleMap.moveCamera(cameraUpdate);
@@ -685,7 +705,6 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                         assert gp != null;
                         LatLng latLng = new LatLng(gp.getLatitude(), gp.getLongitude());
                         driverMarkerOption.position(latLng);
-
                     }
                 }
 

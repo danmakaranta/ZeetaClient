@@ -30,9 +30,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/round"
-            android:paddingStart="30dp"
-            android:paddingLeft="30dp"
-            android:paddingRight="30dp"
+            android:layout_gravity="center"
             android:text="@string/request"
             android:textColor="#fff" />
 
@@ -42,22 +40,20 @@
             android:layout_height="wrap_content"
             android:layout_margin="10dp"
             android:background="@drawable/round"
+            android:layout_gravity="center"
             android:paddingStart="30dp"
             android:paddingLeft="30dp"
             android:paddingRight="30dp"
-            android:text="Call Fashion Designer"
+            android:text="Call Tailor"
             android:textColor="#fff" />
 
         <Button
             android:id="@+id/backToMapActivity"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="80dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/online_red"
-            android:paddingStart="30dp"
-            android:paddingLeft="30dp"
-            android:paddingRight="30dp"
+            android:layout_gravity="center"
             android:text="Back"
             android:textColor="#fff" />
 

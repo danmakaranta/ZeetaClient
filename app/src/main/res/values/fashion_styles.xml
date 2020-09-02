@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string-array name="fashion_styles">
+        <item>Please select a Style</item>
+        <item>Pencil Skirt</item>
+        <item>Pants(Women)</item>
+        <item>Dashiki(Women)</item>
+        <item>Jumpsuit</item>
+        <item>Skirt and Blouse</item>
+        <item>Maxi dress</item>
+        <item>Midi dress</item>
+        <item>Agbada</item>
+        <item>Senator</item>
+        <item>Top(Men)</item>
+        <item>Pants(Men)</item>
+        <item>Up and Down(Men)</item>
+        <item>Etibo(Men)</item>
+        <item>Dashiki Top(Men)</item>
+
+    </string-array>
+</resources>

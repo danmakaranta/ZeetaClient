@@ -868,17 +868,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         }
                         navigationView.setVisibility(View.GONE);
                         return true;
-                   /* case R.id.bikeDelivery:
-                        if (!deliverySearchInProgress) {
-                            nemaProgressDialog.show();
-                            getDeliveryBikes();
-                        } else {
-                            Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
-                        }
-                        navigationView.setVisibility(View.GONE);
-                        return true;*/
-                    case R.id.logout:
-                        //blah .....
+                    case R.id.exit_app:
+                        Intent homeIntent = new Intent(Intent.ACTION_MAIN);
+                        homeIntent.addCategory(Intent.CATEGORY_HOME);
+                        homeIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        startActivity(homeIntent);
                         return true;
                 }
 
@@ -928,48 +922,44 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         public void onKeyEntered(String key, GeoLocation location) {
 
                             keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
-                            if (engaged(key)) {
+                            if (markerList.size() <= 0) {
+                                String markerTitle;
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    String temp = " " + timeApart(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(location.latitude, location.longitude)) + " minutes away";
 
-                            } else {
-                                if (markerList.size() <= 0) {
-                                    String markerTitle;
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                        String temp = " " + timeApart(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), new GeoPoint(location.latitude, location.longitude)) + " minutes away";
-
-                                        try {// nothing more but to slow down execution a bit to get results before proceeding
-                                            Thread.sleep(2000);
-                                        } catch (InterruptedException excp) {
-                                            excp.printStackTrace();
-                                        }
-                                        markerTitle = "Fashion Designer" + temp;
-                                    } else {
-                                        markerTitle = "Fashion Designer, 5 minutes away!";
+                                    try {// nothing more but to slow down execution a bit to get results before proceeding
+                                        Thread.sleep(2000);
+                                    } catch (InterruptedException excp) {
+                                        excp.printStackTrace();
                                     }
-                                    nemaProgressDialog.dismiss();
-                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(markerTitle));
+                                    markerTitle = "Fashion Designer" + temp;
+                                } else {
+                                    markerTitle = "Fashion Designer, few minutes away!";
+                                }
+                                nemaProgressDialog.dismiss();
+                                Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(markerTitle));
 
+                                staffMarker.setTag(key);
+                                //choose icon type for fashion designer
+                                staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.fashiondesigner));
+                                staffMarker.setSnippet("Fashion Designer");
+
+                                markerList.add(staffMarker);
+                                markerNameList.add(key);
+                                staffMarker.showInfoWindow();
+                                updateMarkersRunnable();
+                            } else {
+                                if (!markerNameList.contains(key)) {
+                                    nemaProgressDialog.dismiss();
+                                    Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
                                     staffMarker.setTag(key);
-                                    //choose icon type for fashion designer
                                     staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.fashiondesigner));
                                     staffMarker.setSnippet("Fashion Designer");
-
+                                    moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                     markerList.add(staffMarker);
                                     markerNameList.add(key);
                                     staffMarker.showInfoWindow();
                                     updateMarkersRunnable();
-                                } else {
-                                    if (!markerNameList.contains(key)) {
-                                        nemaProgressDialog.dismiss();
-                                        Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
-                                        staffMarker.setTag(key);
-                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.fashiondesigner));
-                                        staffMarker.setSnippet("Fashion Designer");
-                                        moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
-                                        markerList.add(staffMarker);
-                                        markerNameList.add(key);
-                                        staffMarker.showInfoWindow();
-                                        updateMarkersRunnable();
-                                    }
                                 }
                             }
 
@@ -1478,10 +1468,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                             //search for taxi already in progress
                             taxiSearchInProgress = true;
 
-                            keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
-                            if (engaged(key)) {
-
-                            } else {
+                            if (!engaged(key)) {
+                                keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
                                 if (markerList.size() <= 0) {
                                     String markerTitle;
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1523,6 +1511,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                     }
 
                                 }
+
                             }
 
                         }
@@ -1551,7 +1540,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         @Override
                         public void onGeoQueryReady() {
                             Log.d("OnGeoQueryReady", "OnGeoQueryReady called");
-
                             if (lookingForTaxi <= 5) {
                                 getTaxi();
                                 lookingForTaxi++;
@@ -1913,26 +1901,18 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .document(id);
         final boolean[] status = new boolean[1];
 
-
         engagementStatus.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
                     DocumentSnapshot doc = task.getResult();
                     boolean engaged = doc.getBoolean("engaged");
-                    if (engaged) {
-
-                        status[0] = true;
-                    } else {
-
-                        status[0] = false;
-                    }
+                    status[0] = engaged;
+                    Log.d(TAG, "Engaged() called " + id + " is " + engaged);
                 }
             }
         });
-
         return status[0];
-
     }
 
     private void init() {
@@ -2163,6 +2143,8 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 .collection("Customers")
                 .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("JobData").document(id);
 
+        final boolean[] requestAccepted = {false};
+
 
         GeneralJobData generalJobData = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, FirebaseAuth.getInstance().getUid(),
                 customerPhoneNumber, customerName, (long) 0, (long) amountTobePaid, "Awaiting",
@@ -2172,83 +2154,101 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
+                    Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for your driver.", Toast.LENGTH_LONG).show();
+
                     if (requestProgressDialog.isShowing()) {
                         requestProgressDialog.dismiss();
                     }
                     driverDialog.dismiss();
-                    Toast.makeText(MapActivity.this, "Your Ride request has been sent! please hold for your driver.", Toast.LENGTH_LONG).show();
-                    clientRideRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+                    new CountDownTimer(12000, 1000) {
                         @Override
-                        public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                            counter[0] = counter[0] + 1;
-                            if (e != null) {
-                                Log.w(TAG, "Listen failed.", e);
-                                return;
-                            }
-                            if (documentSnapshot != null && documentSnapshot.exists()) {
+                        public void onTick(long millisUntilFinished) {
 
-                                String accepted = documentSnapshot.getString("accepted");
-                                boolean started = documentSnapshot.getBoolean("started");
-                                boolean arrivedPickUp = documentSnapshot.getBoolean("arrived");
-                                boolean cancelRide = documentSnapshot.getBoolean("cancelRide");
-                                boolean endedRide = documentSnapshot.getBoolean("ended");
-
-                                Handler handler = new Handler();
-                                handler.postDelayed(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            clientRideRequest.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+                                @Override
+                                public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                                    counter[0] = counter[0] + 1;
+                                    if (e != null) {
+                                        Log.w(TAG, "Listen failed.", e);
+                                        return;
                                     }
-                                }, 2000);
+                                    if (documentSnapshot != null && documentSnapshot.exists()) {
 
-                                if (accepted != null) {
-                                    if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp && !notifiedRiderA) {
+                                        String accepted = documentSnapshot.getString("accepted");
+                                        boolean started = documentSnapshot.getBoolean("started");
+                                        boolean arrivedPickUp = documentSnapshot.getBoolean("arrived");
+                                        boolean cancelRide = documentSnapshot.getBoolean("cancelRide");
+                                        boolean endedRide = documentSnapshot.getBoolean("ended");
 
-                                        ridedata = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, id,
-                                                serviceProviderPhone, serviceProviderName, (long) 0, (long) amountTobePaid, "Accepted",
-                                                false, false, serviceType, timeStamp, "Accepted", (long) 0, false, false);
-
-                                        customerjobData.set(ridedata).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                        Handler handler = new Handler();
+                                        handler.postDelayed(new Runnable() {
                                             @Override
-                                            public void onComplete(@NonNull Task<Void> task) {
-                                                if (task.isSuccessful()) {
-                                                    final AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
-                                                    builder.setMessage("Your driver is few minutes to your pick up")
-                                                            .setCancelable(false);
-                                                    final AlertDialog alert = builder.create();
-
-                                                    new CountDownTimer(3000, 1000) {
-                                                        @Override
-                                                        public void onTick(long millisUntilFinished) {
-                                                            alert.show();
-                                                        }
-
-                                                        @Override
-                                                        public void onFinish() {
-                                                            alert.dismiss();
-                                                            notifiedRiderA = true;
-                                                            startRidePage();
-                                                        }
-                                                    }.start();
-                                                }
+                                            public void run() {
                                             }
-                                        });
+                                        }, 2000);
 
-                                    } else if (accepted.equalsIgnoreCase("Declined")) {
+                                        if (accepted != null) {
+                                            if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp && !notifiedRiderA) {
+                                                requestAccepted[0] = true;
+                                                ridedata = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, id,
+                                                        serviceProviderPhone, serviceProviderName, (long) 0, (long) amountTobePaid, "Accepted",
+                                                        false, false, serviceType, timeStamp, "Accepted", (long) 0, false, false);
 
-                                        clientRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                            @Override
-                                            public void onComplete(@NonNull Task<Void> task) {
-                                                makeLongToast("Your request have been declined, please choose another Vehicle");
-                                                Log.w(TAG, "Ride Request declined, clear request data.");
+                                                customerjobData.set(ridedata).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                        if (task.isSuccessful()) {
+                                                            final AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
+                                                            builder.setMessage("Your driver is few minutes to your pick up")
+                                                                    .setCancelable(false);
+                                                            final AlertDialog alert = builder.create();
 
+                                                            new CountDownTimer(3000, 1000) {
+                                                                @Override
+                                                                public void onTick(long millisUntilFinished) {
+                                                                    alert.show();
+                                                                }
+
+                                                                @Override
+                                                                public void onFinish() {
+                                                                    alert.dismiss();
+                                                                    notifiedRiderA = true;
+                                                                    startRidePage();
+                                                                }
+                                                            }.start();
+                                                        }
+                                                    }
+                                                });
+
+                                            } else if (accepted.equalsIgnoreCase("Declined")) {
+
+                                                clientRideRequest.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                        makeLongToast("Your request have been declined, please choose another Vehicle");
+                                                        Log.w(TAG, "Ride Request declined, clear request data.");
+                                                    }
+                                                });
                                             }
-                                        });
-
+                                        }
                                     }
                                 }
+                            });
+                        }
+
+                        @Override
+                        public void onFinish() {
+                            if (!requestAccepted[0]) {
+                                clientRideRequest.update("cancelRide", true).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                    @Override
+                                    public void onComplete(@NonNull Task<Void> task) {
+                                        makeLongToast("The driver did not respond, please choose another Vehicle");
+                                    }
+                                });
                             }
                         }
-                    });
+                    }.start();
+
                 }
             }
         });
@@ -2256,6 +2256,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     private void startRidePage() {
+        //do some cleaning first for future search
+        clearLoaderManager();
+        destinationET.setText("");
+        rideEst.setText("");
+
         Intent intent = new Intent(MapActivity.this, RidePage.class);
         intent.putExtra("RideData", ridedata);
         intent.putExtra("servicePLongitude", ridedata.getServiceProviderLocation().getLongitude());
@@ -2324,7 +2329,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         // custom dialog
         final Dialog dialog = new Dialog(MapActivity.this);
 
-       
+
         DocumentReference serviceProviderDetails = null;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
             serviceProviderDetails = FirebaseFirestore.getInstance()
@@ -2448,18 +2453,16 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     Long transp2 = doc.getLong("transportPerKm2");
                     Long transp3 = doc.getLong("transportPerKm3");
 
-                    technician = tech.doubleValue();
-                    fashionDesignerNewFabric = fashion2.doubleValue();
-                    fashionDesignerCorrection = fashion1.doubleValue();
-                    healthWorker = health.doubleValue();
+                    //technician = tech.doubleValue();
+                    //fashionDesignerNewFabric = fashion2.doubleValue();
+                    //fashionDesignerCorrection = fashion1.doubleValue();
+                   /* healthWorker = health.doubleValue();
                     transport1 = transp1.doubleValue();
                     transport2 = transp2.doubleValue();
                     transport3 = transp3.doubleValue();
                     bikeDelivery1 = bikeDeliv1.doubleValue();
                     bikeDelivery2 = bikeDeliv2.doubleValue();
-                    bikeDelivery3 = bikeDeliv3.doubleValue();
-
-                    Log.d(TAG, "Technician: " + technician);
+                    bikeDelivery3 = bikeDeliv3.doubleValue();*/
 
                 }
 
@@ -2637,7 +2640,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     ArrayAdapter arrayAdapter = new ArrayAdapter(MapActivity.this, android.R.layout.simple_spinner_item, paymentOptions);
                     arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                     paymentSelection.setAdapter(arrayAdapter);
-
 
                     paymentSelection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                         @Override
