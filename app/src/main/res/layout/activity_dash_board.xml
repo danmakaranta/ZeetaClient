@@ -70,7 +70,7 @@
         android:layout_marginLeft="5dp"
         android:layout_marginTop="20dp"
         android:background="@drawable/custom_button3"
-        android:text="Make Withdrawals"
+        android:text=" Make Deposit "
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/dashboard_phone_number" />
 

@@ -21,29 +21,45 @@
         android:allowBackup="true"
         android:icon="@drawable/zeetaicon"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/zeetaicon"
         android:supportsRtl="true"
         android:theme="@style/AppTheme.NoActionBar">
-        <activity android:name=".Login"></activity>
-        <activity android:name=".VerifyPhoneNumber" />
-        <activity android:name=".Fashion_samples" />
-        <activity android:name=".CreditCardLayout" />
-        <activity android:name=".RidePage" />
+        <activity
+            android:name=".Login"
+            android:screenOrientation="portrait"></activity>
+        <activity
+            android:name=".VerifyPhoneNumber"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".Fashion_samples"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".CreditCardLayout"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".RidePage"
+            android:screenOrientation="portrait" />
         <activity android:name=".predesign" />
         <activity android:name=".drawer" />
         <activity
             android:name=".StartPage"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_start_page"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".Jobs_information"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_jobs_information"
             android:theme="@style/AppTheme.NoActionBar" />
-        <activity android:name=".Jobs" />
-        <activity android:name=".DashBoard" />
+        <activity
+            android:name=".Jobs"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".DashBoard"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".Request"
             android:label="@string/title_activity_request"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".user_list_item"
@@ -52,8 +68,11 @@
         <activity
             android:name=".Enrollment"
             android:label="@string/title_activity_enrollment"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar" />
-        <activity android:name=".Signin" />
+        <activity
+            android:name=".Signin"
+            android:screenOrientation="portrait" />
 
         <uses-library
             android:name="org.apache.http.legacy"
@@ -66,15 +85,18 @@
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
 
-        <activity android:name=".MainActivity">
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".MapActivity">
+        <activity
+            android:name=".MapActivity"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

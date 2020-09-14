@@ -33,6 +33,7 @@ import android.text.Html;
 import android.text.Spanned;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
@@ -44,6 +45,7 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -87,6 +89,7 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
@@ -165,8 +168,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     protected GeoDataClient mGeoDataClient;
     AutoCompleteTextView pickET;
     AutoCompleteTextView destinationET;
-    private Spinner paymentSelection;
-    private ImageView selectedPaymentIcon;
+
     Location currentLocation;
     Intent serviceIntent;
     //firestore access for cloud storage
@@ -301,6 +303,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private boolean tricycleSearchInProgress = false;
     private int lookingForTricycle = 0;
     private boolean mechanicSearchInProgress = false;
+    long lessthan5km, lessthan10km, lessthan50;
     private int lookingForDeliveryBikes = 0;
     private boolean fashionDesignerSearchInProgress = false;
     private boolean deliverySearchInProgress = false;
@@ -309,6 +312,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private String paymentType;
     private String serviceProviderName;
     private String serviceProviderPhone;
+    private boolean bikeDeliverySearchInProgress = false;
+    private double KEKERADIUS = 2;
+    private double FASHIONDESIGNERRADIUS = 10;
+
 
     public static String getLocalityName(Context context, double latitude, double longitude) throws IOException {
         Geocoder geocoder = new Geocoder(context, Locale.getDefault());
@@ -520,48 +527,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         return markerTracker;
     }
 
-
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
-        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
-        googleMap.getUiSettings().setZoomControlsEnabled(true);
-        googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
-                try {
-                    String servType = marker.getSnippet();
-                    LatLng ltl = marker.getPosition();
-                    GeoPoint servicePgp = new GeoPoint(ltl.latitude, ltl.longitude);
-                    if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
-                        getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString(), servicePgp);
-                    } else if (servType.equalsIgnoreCase("Fashion Designer")) {
-                        goToFashioDesignerPage(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
-                    } else {
-                        getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
-                    }
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                return false;
-            }
-        });
-
-        mMap.setOnInfoWindowClickListener(this);
-        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-            @Override
-            public void onMapClick(LatLng latLng) {
-                navigationView.setVisibility(View.INVISIBLE);
-            }
-        });
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        new getDeviceLocationAsync().execute();
-
-        mMap.setOnPolylineClickListener(this);
-
-    }
+    private double TAXIRADIUS = 3;
 
     private boolean checkMapServices() {
         if (isServicesOk()) {
@@ -734,6 +700,50 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+        googleMap.getUiSettings().setZoomControlsEnabled(true);
+        googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                try {
+                    String servType = marker.getSnippet();
+                    LatLng ltl = marker.getPosition();
+                    GeoPoint servicePgp = new GeoPoint(ltl.latitude, ltl.longitude);
+                    if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
+                        getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString(), servicePgp);
+                    } else if (servType.equalsIgnoreCase("Fashion Designer")) {
+                        goToFashionDesignerPage(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
+                    } else if (servType.equalsIgnoreCase("Bike Delivery")) {
+                        bikeDeliveryPage(marker.getTag().toString());
+                    } else {
+                        getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return false;
+            }
+        });
+
+        mMap.setOnInfoWindowClickListener(this);
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                navigationView.setVisibility(View.INVISIBLE);
+            }
+        });
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        new getDeviceLocationAsync().execute();
+
+        mMap.setOnPolylineClickListener(this);
+
+    }
+
+    @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
@@ -868,6 +878,15 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         }
                         navigationView.setVisibility(View.GONE);
                         return true;
+                    case R.id.bikeDeliveryService:
+                        if (!mechanicSearchInProgress) {
+                            nemaProgressDialog.show();
+                            getDeliveryBikes();
+                        } else {
+                            Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
+                        }
+                        navigationView.setVisibility(View.GONE);
+                        return true;
                     case R.id.exit_app:
                         Intent homeIntent = new Intent(Intent.ACTION_MAIN);
                         homeIntent.addCategory(Intent.CATEGORY_HOME);
@@ -909,10 +928,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     Location location = task.getResult();
 
                     if (location != null) {
-                        geoQueryFashionDesiner = finalGeoFireFashionDesigner.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
+                        geoQueryFashionDesiner = finalGeoFireFashionDesigner.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), FASHIONDESIGNERRADIUS);
 
                     } else {
-                        geoQueryFashionDesiner = finalGeoFireFashionDesigner.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
+                        geoQueryFashionDesiner = finalGeoFireFashionDesigner.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), FASHIONDESIGNERRADIUS);
                     }
 
 
@@ -1006,12 +1025,74 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     }
 
-    private void goToFashioDesignerPage(String id, LatLng position) {
+    private void goToFashionDesignerPage(String id, LatLng position) {
         Intent fashionIntent = new Intent(MapActivity.this, Fashion_samples.class);
         fashionIntent.putExtra("ID", id);
         fashionIntent.putExtra("Longitude", currentLocation.getLongitude());
         fashionIntent.putExtra("Latitude", currentLocation.getLatitude());
         startActivity(fashionIntent);
+
+    }
+
+    private void bikeDeliveryPage(String id) {
+        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(
+                MapActivity.this, R.style.BottomSheetDialogTheme
+        );
+        String[] paymentOptions = getResources().getStringArray(R.array.payment_methods);
+        View bottomSheetView = LayoutInflater.from(getApplicationContext())
+                .inflate(R.layout.bike_delivery, (LinearLayout) findViewById(R.id.bikeBottomSheetContainer));
+        Spinner paymentSelection = (Spinner) bottomSheetView.findViewById(R.id.bike_payment_selection);
+        ArrayAdapter arrayAdapter = new ArrayAdapter(MapActivity.this, android.R.layout.simple_spinner_item, paymentOptions);
+        arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        paymentSelection.setAdapter(arrayAdapter);
+        DocumentReference pricesForBikeDelivery = FirebaseFirestore.getInstance()
+                .collection("Rate")
+                .document("costOfService");
+
+        pricesForBikeDelivery.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    lessthan5km = task.getResult().getLong("bikedeliverylessthan5km");
+                    lessthan10km = task.getResult().getLong("bikedeliverylessthan10km");
+                    lessthan50 = task.getResult().getLong("bikedeliverylessthan50km");
+                }
+            }
+        });
+
+        paymentSelection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedPaymentType = paymentSelection.getSelectedItem().toString();
+                paymentType = "";
+                ImageView selectedPaymentIcon = bottomSheetView.findViewById(R.id.bike_selected_payment_icon);
+                if (selectedPaymentType.equalsIgnoreCase("ATM Card")) {
+                    paymentSelection.setSelection(1);
+                    paymentType = "ATM Card";
+                    selectedPaymentIcon.setImageResource(R.drawable.creditcard24);
+                } else if (selectedPaymentType.equalsIgnoreCase("Cash")) {
+                    paymentType = "Cash";
+                    paymentSelection.setSelection(2);
+                    selectedPaymentIcon.setImageResource(R.drawable.cash);
+                } else if (selectedPaymentType.equalsIgnoreCase("Wallet")) {
+                    paymentType = "Wallet";
+                    paymentSelection.setSelection(3);
+                    selectedPaymentIcon.setImageResource(R.drawable.wallet24);
+                } else if (selectedPaymentType.equalsIgnoreCase("Select Payment")) {
+                    paymentSelection.setSelection(0);
+                    selectedPaymentIcon.setImageResource(R.drawable.zeetamaxxx);
+                    paymentType = "";
+                }
+
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+        bottomSheetDialog.setContentView(bottomSheetView);
+        bottomSheetDialog.show();
 
     }
 
@@ -1043,10 +1124,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     Location location = task.getResult();
 
                     if (location != null) {
-                        geoQueryTricycle = finalGeoFireTricycle.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
+                        geoQueryTricycle = finalGeoFireTricycle.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), KEKERADIUS);
 
                     } else {
-                        geoQueryTricycle = finalGeoFireTricycle.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
+                        geoQueryTricycle = finalGeoFireTricycle.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), KEKERADIUS);
                     }
 
                     geoQueryTricycle.addGeoQueryEventListener(new GeoQueryEventListener() {
@@ -1355,7 +1436,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
                                     //choose icon type for transport or other service
                                     if (requestedService.equalsIgnoreCase("Taxi") || requestedService.equalsIgnoreCase("Trycycle(Keke)")) {
-                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.tdcar));
                                         staffMarker.setSnippet(requestedService);
                                     } else {
                                         staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
@@ -1371,7 +1452,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
                                         staffMarker.setTag(key);
                                         if (requestedService.equalsIgnoreCase("Taxi") || requestedService.equalsIgnoreCase("Trycycle(Keke)")) {
-                                            staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
+                                            staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.tdcar));
                                             staffMarker.setSnippet(requestedService);
                                         } else {
                                             staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.ic_directions_walk_black_24dp));
@@ -1455,10 +1536,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     Location location = task.getResult();
 
                     if (location != null) {
-                        geoQueryTaxi = finalGeoFireTaxi.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), RADIUS);
+                        geoQueryTaxi = finalGeoFireTaxi.queryAtLocation(new GeoLocation(location.getLatitude(), location.getLongitude()), TAXIRADIUS);
 
                     } else {
-                        geoQueryTaxi = finalGeoFireTaxi.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), RADIUS);
+                        geoQueryTaxi = finalGeoFireTaxi.queryAtLocation(new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude()), TAXIRADIUS);
                     }
 
                     geoQueryTaxi.addGeoQueryEventListener(new GeoQueryEventListener() {
@@ -1467,6 +1548,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         public void onKeyEntered(String key, GeoLocation location) {
                             //search for taxi already in progress
                             taxiSearchInProgress = true;
+
 
                             if (!engaged(key)) {
                                 keysFound.add(new StaffFound(key, new LatLng(location.latitude, location.longitude), key));
@@ -1489,7 +1571,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
                                     staffMarker.setTag(key);
                                     //choose icon type for transport or other service
-                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
+                                    staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.tdcar));
                                     staffMarker.setSnippet("Taxi");
                                     moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");// don't forget to remove later
                                     markerList.add(staffMarker);
@@ -1501,7 +1583,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         nemaProgressDialog.dismiss();
                                         Marker staffMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.latitude, location.longitude)).title(requestedService));
                                         staffMarker.setTag(key);
-                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.car643));
+                                        staffMarker.setIcon(bitmapDescriptorFromVector(getApplicationContext(), R.drawable.tdcar));
                                         staffMarker.setSnippet("Taxi");
                                         moveCamera(new LatLng(location.latitude, location.longitude), DEFAULT_ZOOM, "");
                                         markerList.add(staffMarker);
@@ -2082,7 +2164,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 if (documentSnapshot != null && documentSnapshot.exists()) {
                     Log.d(TAG, "Current data: " + documentSnapshot.getData());
                     if (documentSnapshot.getString("accepted").equals("Accepted") && !notifyAcceptance[0]) {
-                        Toast.makeText(MapActivity.this, "Your request have been accepted! Hold on for Service Provider!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MapActivity.this, "Your request has been accepted! Hold on for Service Provider!", Toast.LENGTH_LONG).show();
                         notifyAcceptance[0] = true;
 
                         setJobDataOnCloud(id, position);
@@ -2145,7 +2227,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         final boolean[] requestAccepted = {false};
 
-
         GeneralJobData generalJobData = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, FirebaseAuth.getInstance().getUid(),
                 customerPhoneNumber, customerName, (long) 0, (long) amountTobePaid, "Awaiting",
                 false, false, serviceType, timeStamp, "Awaiting", (long) 0, false, false, paymentType);
@@ -2180,15 +2261,15 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                         boolean cancelRide = documentSnapshot.getBoolean("cancelRide");
                                         boolean endedRide = documentSnapshot.getBoolean("ended");
 
-                                        Handler handler = new Handler();
-                                        handler.postDelayed(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                            }
-                                        }, 2000);
+                                        try {// nothing more but to slow down execution a bit to get results before proceeding
+                                            Thread.sleep(2000);
+                                        } catch (InterruptedException excp) {
+                                            excp.printStackTrace();
+                                        }
 
-                                        if (accepted != null) {
-                                            if (accepted.equalsIgnoreCase("Accepted") && !started && !endedRide && !arrivedPickUp && !notifiedRiderA) {
+                                        if (!requestAccepted[0]) {
+                                            if (accepted.equalsIgnoreCase("Accepted") && !notifiedRiderA) {
+                                                notifiedRiderA = true;
                                                 requestAccepted[0] = true;
                                                 ridedata = new GeneralJobData(jouneyPickup, journeyDestination, serviceProviderGp, id,
                                                         serviceProviderPhone, serviceProviderName, (long) 0, (long) amountTobePaid, "Accepted",
@@ -2199,7 +2280,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                                     public void onComplete(@NonNull Task<Void> task) {
                                                         if (task.isSuccessful()) {
                                                             final AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
-                                                            builder.setMessage("Your driver is few minutes to your pick up")
+                                                            builder.setMessage("Your driver has accepted your ride request and is few minutes to your pick up")
                                                                     .setCancelable(false);
                                                             final AlertDialog alert = builder.create();
 
@@ -2508,7 +2589,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
             if (servType.equalsIgnoreCase("Taxi") || servType.equalsIgnoreCase("Trycycle(Keke)")) {
                 getZeetaDriver(Objects.requireNonNull(marker.getTag()).toString(), servicePgp);
             } else if (servType.equalsIgnoreCase("Fashion Designer")) {
-                goToFashioDesignerPage(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
+                goToFashionDesignerPage(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
+            } else if (servType.equalsIgnoreCase("Bike Delivery")) {
+                bikeDeliveryPage(marker.getTag().toString());
             } else {
                 getServiceProviderDetails(Objects.requireNonNull(marker.getTag()).toString(), marker.getPosition());
             }
@@ -2536,7 +2619,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     serviceProviderName[0] = (String) doc.get("name");
                     serviceProviderPhone[0] = (String) doc.get("phoneNumber");
                 }
-
             }
         });
 
@@ -2619,7 +2701,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
         paymentType = "";
 
-
+        assert driverDetails != null;
         driverDetails.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
@@ -2629,14 +2711,14 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     destination = null;
                     GeoPoint serviceProviderLocation = null;
                     serviceRendered = "";
-                    String[] paymentOptions = getResources().getStringArray(R.array.payment_methods);
                     destinationET = driverDialog.findViewById(R.id.destination_input);
                     destinationET.setText("");
                     pickET = driverDialog.findViewById(R.id.pickup_input);
                     rideEst = driverDialog.findViewById(R.id.ride_estimate);
                     rideClass = driverDialog.findViewById(R.id.vehicle_class);
-                    paymentSelection = (Spinner) driverDialog.findViewById(R.id.payment_selection);
-                    selectedPaymentIcon = driverDialog.findViewById(R.id.selected_payment_icon);
+                    Spinner paymentSelection = (Spinner) driverDialog.findViewById(R.id.payment_selection);
+                    String[] paymentOptions = getResources().getStringArray(R.array.payment_methods);
+                    ImageView selectedPaymentIcon = driverDialog.findViewById(R.id.selected_payment_icon);
                     ArrayAdapter arrayAdapter = new ArrayAdapter(MapActivity.this, android.R.layout.simple_spinner_item, paymentOptions);
                     arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                     paymentSelection.setAdapter(arrayAdapter);

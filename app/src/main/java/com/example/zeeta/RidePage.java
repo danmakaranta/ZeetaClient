@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.LoaderManager;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -127,6 +128,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
     private Handler locationHandler = new Handler();
     private Runnable locationRunnable;
     private Dialog paymentOptionsDialog;
+    private ProgressDialog cancelRideProgressDialog;
 
     public static boolean callPermissions(Context context, String... permissions) {
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && context != null && permissions != null) {
@@ -153,6 +155,9 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
         waitingTxt.setVisibility(View.INVISIBLE);
         markerOption = new MarkerOptions();
         driverMarkerOption = new MarkerOptions();
+
+        cancelRideProgressDialog = new ProgressDialog(this);
+        cancelRideProgressDialog.setMessage("Cancelling Ride....");
 
         serviceProviderLocation = new Location(LocationManager.GPS_PROVIDER);
         pickupLocation = new Location(LocationManager.GPS_PROVIDER);
@@ -206,7 +211,9 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
         cancelRideBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                stopTimer();
                 passengerCanceled = true;
+                cancelRideProgressDialog.show();
                 cancelRide();
             }
         });
@@ -263,7 +270,6 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                                     @Override
                                     public void onComplete(@NonNull Task<Void> task) {
                                         if (task.isSuccessful()) {
-
                                             cancelRide();
                                         }
                                     }
@@ -285,11 +291,24 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                         cancelRideBtn.setEnabled(false);
                         stopTimer();
                         Toast.makeText(RidePage.this, "Your journey has started.", Toast.LENGTH_LONG).show();
-                    } else if (journeyEnded && !endedJourneyNotification) {
+                    }
+
+                    if (journeyEnded && !endedJourneyNotification) {
                         endedJourneyNotification = true;
-                        Toast.makeText(RidePage.this, "You have arrived your destination.", Toast.LENGTH_LONG).show();
+                        new CountDownTimer(3000, 1000) {
+                            @Override
+                            public void onTick(long millisUntilFinished) {
+                                Toast.makeText(RidePage.this, "You have arrived your destination.", Toast.LENGTH_LONG).show();
+                            }
+
+                            @Override
+                            public void onFinish() {
+                                finish();
+                            }
+                        }.start();
 
                     }
+
                 }
             }
         });
@@ -391,7 +410,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
-                    stopTimer();
+
                     rideInformation.update("status", "Canceled");
                     customersJobDataOncloud.set((new GeneralJobData(journeyInfo.getServiceLocation(), journeyInfo.getDestination(), null, journeyInfo.getServiceID(),
                             journeyInfo.getPhoneNumber(), journeyInfo.getName(), (long) 0, (long) 0, "Accepted",
@@ -399,39 +418,13 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                         @Override
                         public void onComplete(@NonNull Task<Void> task) {
                             if (task.isSuccessful()) {
-                               /* Intent intent = new Intent(RidePage.this, MapActivity.class).putExtra("ReRequest", journeyInfo.getServiceRendered());
-                                startActivity(intent);*/
+                                if (cancelRideProgressDialog.isShowing()) {
+                                    cancelRideProgressDialog.dismiss();
+                                }
                                 finish();
                             }
                         }
                     });
-                }
-            }
-        });
-
-    }
-
-
-    private void startRide() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            rideInformation = FirebaseFirestore.getInstance()
-                    .collection("Users")
-                    .document(Objects.requireNonNull(FirebaseAuth.getInstance().getUid())).collection("Request").document("ongoing");
-
-        }
-
-        rideInformation.update("started", true).addOnCompleteListener(new OnCompleteListener<Void>() {
-            @Override
-            public void onComplete(@NonNull Task<Void> task) {
-                if (task.isSuccessful()) {
-                    stopTimer();
-                    Toast.makeText(RidePage.this, "Journey Started!", Toast.LENGTH_SHORT).show();
-                    rideInformation.update("status", "Ongoing");
-                    cancelRideBtn.setVisibility(View.INVISIBLE);
-
-                    callDriver.setEnabled(false);
-                    endRide.setVisibility(View.VISIBLE);
-                    wait_timer.setVisibility(View.INVISIBLE);
                 }
             }
         });
@@ -563,9 +556,9 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                         polylineData.getLeg().endLocation.lat,
                         polylineData.getLeg().endLocation.lng
                 );
-                Marker driverMarker = mMap.addMarker(driverMarkerOption);
-                Marker marker = mMap.addMarker(markerOption);
-                marker.showInfoWindow();
+                //Marker driverMarker = mMap.addMarker(driverMarkerOption);
+                //Marker marker = mMap.addMarker(markerOption);
+                //marker.showInfoWindow();
                 driverMarker.showInfoWindow();
             } else {
                 polylineData.getPolyline().setColor(R.color.darkGrey);
@@ -631,16 +624,17 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
             public void onMapReady(GoogleMap googleMap) {
                 LatLng latLng = new LatLng(latitude, longitude);
                 mMap = googleMap;
-                driverMarkerOption.icon(BitmapDescriptorFactory.fromResource(R.drawable.car64))
-                        .anchor(0.0f, 1.0f)
-                        .position(latLng).title("Driver");
+                /*driverMarkerOption.icon(BitmapDescriptorFactory.fromResource(R.drawable.tdcar))
+                        .position(latLng).title("Driver");*/
 
-                /*Marker driver = mMap.addMarker(new MarkerOptions().position(new LatLng(latitude, longitude)).title("Driver"));
-                driver.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.car64));
-                driver.setAnchor(0.0f, 1.0f);*/
+                driverMarker = mMap.addMarker(new MarkerOptions()
+                        .position(latLng)
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.tdcar))
+                        .anchor(0.5f, 0.5f)
+                        .rotation(120)
+                        .title("Driver"));
 
-
-                googleMap.addMarker(driverMarkerOption);
+                // googleMap.addMarker(driverMarkerOption);
                 //googleMap.getUiSettings().setMyLocationButtonEnabled(true);
                 googleMap.getUiSettings().setZoomControlsEnabled(true);
 
@@ -660,9 +654,14 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
             public void onMapReady(GoogleMap googleMap) {
                 LatLng latLng = new LatLng(latitude, longitude);
                 mMap = googleMap;
-                markerOption.icon(BitmapDescriptorFactory.fromResource(R.drawable.passenger))
+               /* mMap.addMarker(markerOption.icon(BitmapDescriptorFactory.fromResource(R.drawable.passenger))
                         .anchor(0.0f, 1.0f)
-                        .position(latLng).title("You");
+                        .position(latLng).title("You"));*/
+                mMap.addMarker(new MarkerOptions()
+                        .position(latLng)
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.passenger))
+                        .anchor(0.0f, 0.0f)
+                        .title("You")).showInfoWindow();
 
                 //googleMap.addMarker(markerOption);
                 googleMap.getUiSettings().setMyLocationButtonEnabled(true);
@@ -733,9 +732,9 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                 showPassengerOnMap(pickupLocation.getLatitude(), pickupLocation.getLongitude());
                 GeoPoint gp = new GeoPoint(pickupLocation.getLatitude(), pickupLocation.getLongitude());
                 calculateDirections(serviceProviderLocation, gp);
-                if (driverMarkerOption != null) {
+                /*if (driverMarkerOption != null) {
                     updateMarkerRunnable();
-                }
+                }*/
             }
         }
 

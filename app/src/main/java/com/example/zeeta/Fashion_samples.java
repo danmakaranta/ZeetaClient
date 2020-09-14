@@ -16,7 +16,6 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
-import android.widget.RatingBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -76,7 +75,7 @@ public class Fashion_samples extends AppCompatActivity {
     private String customerPhoneNumber = "";
     private String customerName = "";
     private TextView tailorsName;
-    private RatingBar tailorsRating;
+    private TextView tailorsRating;
     private List<FashionPrices> fashionPricesNew, fashionPricesAmendment;
 
     //widgets for fashion selection
@@ -348,7 +347,8 @@ public class Fashion_samples extends AppCompatActivity {
                     if (tailorsName != null) {
                         tailorsName.setText(name);
                         assert rating != null;
-                        tailorsRating.setRating(Float.parseFloat(rating));
+                        //tailorsRating.setRating(Float.parseFloat(rating));
+                        tailorsRating.setText(rating);
                     }
                 }
             }
@@ -471,16 +471,17 @@ public class Fashion_samples extends AppCompatActivity {
 
         jobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()), null, null,
                 id, serviceProviderPhone[0], serviceProviderName[0], (long) 0, totalEstimate, "Accepted",
-                false, false, "Fashion Designer", timeStamp, "Accepted", (long) 0, true, false))
+                false, false, "Fashion Designer", timeStamp, "Accepted", (long) 0, true, false, "Cash"))
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
                         Log.d("setJobData", "Job data set: client");
                     }
                 });
+
         spJobData.set(new GeneralJobData(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()),
                 null, null, FirebaseAuth.getInstance().getUid(), customerPhoneNumber, customerName, (long) 0, totalEstimate, "Accepted",
-                false, false, "Fashion Designer", timeStamp, "Accepted", (long) 0, false, false))
+                false, false, "Fashion Designer", timeStamp, "Accepted", (long) 0, false, false, "Cash"))
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {

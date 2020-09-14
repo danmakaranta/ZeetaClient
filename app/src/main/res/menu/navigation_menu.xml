@@ -19,6 +19,10 @@
             android:id="@+id/fashion_designer"
             android:icon="@drawable/fashiondesigner"
             android:title="@string/tailor" />
+        <item
+            android:id="@+id/bikeDeliveryService"
+            android:icon="@drawable/deliverybike"
+            android:title="@string/bike_delivery" />
 
         <item
             android:id="@+id/mechanicService"
@@ -32,10 +36,7 @@
              android:id="@+id/carpentryService"
              android:icon="@drawable/saw"
              android:title="@string/carpenter" />-->
-        <!-- <item
-             android:id="@+id/bikeDelivery"
-             android:icon="@drawable/deliverybike"
-             android:title="@string/bike_delivery" />-->
+
 
         <item
             android:id="@+id/barberService"
