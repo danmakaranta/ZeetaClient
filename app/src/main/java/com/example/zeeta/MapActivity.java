@@ -247,6 +247,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private ProgressDialog nemaProgressDialog;
     private Bitmap my_image;
     private ProgressDialog loadingProgressDialog;
+
     /**
      * Callback for results from a Places Geo Data Client query that shows the first place result in
      * the details view on screen.
@@ -701,9 +702,10 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
+
         googleMap.getUiSettings().setMyLocationButtonEnabled(false);
         googleMap.getUiSettings().setZoomControlsEnabled(true);
+
         googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
             public boolean onMarkerClick(Marker marker) {
@@ -727,6 +729,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 return false;
             }
         });
+        mMap = googleMap;
+        mMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+        mMap.setTrafficEnabled(false);
+        mMap.setIndoorEnabled(false);
+        mMap.setBuildingsEnabled(false);
 
         mMap.setOnInfoWindowClickListener(this);
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
@@ -893,6 +900,11 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         homeIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                         startActivity(homeIntent);
                         return true;
+                    case R.id.hairService:
+                        Intent ridePageAnim = new Intent(MapActivity.this, RidePage2.class);
+                        startActivity(ridePageAnim);
+                        return true;
+
                 }
 
                 return false;
@@ -2115,7 +2127,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                 }
             }
         });
-
     }
 
 
@@ -2190,8 +2201,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     private void sendRideRequest(String id, GeoPoint jouneyPickup, GeoPoint journeyDestination, Long amountTobePaid, GeoPoint serviceProviderGp, String serviceType, String paymentType) {
         final int[] counter = {0};
         timeStamp = Timestamp.now();
-        serviceProviderPhone = "";
-        serviceProviderName = "";
+
         DocumentReference serviceProviderData = FirebaseFirestore.getInstance()
                 .collection("Users")
                 .document(id);
@@ -2203,15 +2213,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     serviceProviderName = (String) doc.get("name");
                     serviceProviderPhone = (String) doc.get("phoneNumber");
                 }
-
             }
         });
 
-        try {// nothing more but to slow down execution a bit to get results before proceeding
-            Thread.sleep(2000);
-        } catch (InterruptedException excp) {
-            excp.printStackTrace();
-        }
 
         clientRideRequest = FirebaseFirestore.getInstance()
                 .collection("Users")
@@ -2283,6 +2287,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                                                             builder.setMessage("Your driver has accepted your ride request and is few minutes to your pick up")
                                                                     .setCancelable(false);
                                                             final AlertDialog alert = builder.create();
+                                                            requestAccepted[0] = true;
 
                                                             new CountDownTimer(3000, 1000) {
                                                                 @Override
@@ -2854,8 +2859,13 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     public void onClick(View v) {
                         destinationText = destinationET.getText().toString();
                         if (paymentType != null && !paymentType.isEmpty()) {
-                            requestProgressDialog.show();
-                            sendRideRequest(id, pickupLocation, destination, (long) rideEstimateAmount, servicePLocation, "Taxi", paymentType);
+                            if (destination != null) {
+                                requestProgressDialog.show();
+                                sendRideRequest(id, pickupLocation, destination, (long) rideEstimateAmount, servicePLocation, "Taxi", paymentType);
+                            } else {
+                                Toast.makeText(MapActivity.this, "Ride destination not valid!", Toast.LENGTH_SHORT).show();
+                            }
+
                         } else {
                             Toast.makeText(MapActivity.this, "You need to select a payment method", Toast.LENGTH_SHORT).show();
                         }
@@ -2874,7 +2884,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     public void onLoadFinished(Loader<String> loader, String data) {
         rideEst.setText(data);
         rideEstimateAmount = getPriceInteger(data);
-
     }
 
     @Override
@@ -2895,7 +2904,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
         InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
         assert inputMethodManager != null;
         inputMethodManager.hideSoftInputFromWindow(v.getWindowToken(), 0);
-
     }
 
     /*public static void hideSoftKeyboard(Activity activity) {

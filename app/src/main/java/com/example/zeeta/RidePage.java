@@ -13,7 +13,6 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
-import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
 import android.media.AudioManager;
@@ -82,10 +81,6 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final String FINE_LOCATION = Manifest.permission.ACCESS_FINE_LOCATION;
     private static final String TAG = "RIDE_PAGE";
-    private static final float DEFAULT_ZOOM = 15f;
-    private static final long LOCATION_UPDATE_INTERVAL = 3000;
-    public Criteria criteria;
-    public String bestProvider;
     int PERMISSION_ALL = 1;
     String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.READ_CONTACTS, Manifest.permission.CALL_PHONE};
     Location pickupLocation, serviceProviderLocation, destination;
@@ -261,6 +256,7 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                         builder.setMessage("We are SORRY, your driver canceled, please choose another vehicle?")
                                 .setCancelable(false);
                         final AlertDialog alert = builder.create();
+                        passengerCanceled = true;
 
                         new CountDownTimer(3000, 1000) {
                             @Override
@@ -275,7 +271,6 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                                     }
                                 });
                             }
-
                             @Override
                             public void onFinish() {
 
@@ -300,7 +295,6 @@ public class RidePage extends FragmentActivity implements OnMapReadyCallback, Go
                             public void onTick(long millisUntilFinished) {
                                 Toast.makeText(RidePage.this, "You have arrived your destination.", Toast.LENGTH_LONG).show();
                             }
-
                             @Override
                             public void onFinish() {
                                 finish();

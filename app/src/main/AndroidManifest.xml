@@ -23,9 +23,10 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme.NoActionBar">
+        <activity android:name=".RidePage2"></activity>
         <activity
             android:name=".Login"
-            android:screenOrientation="portrait"></activity>
+            android:screenOrientation="portrait" />
         <activity
             android:name=".VerifyPhoneNumber"
             android:screenOrientation="portrait" />
@@ -42,13 +43,13 @@
         <activity android:name=".drawer" />
         <activity
             android:name=".StartPage"
-            android:screenOrientation="portrait"
             android:label="@string/title_activity_start_page"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".Jobs_information"
-            android:screenOrientation="portrait"
             android:label="@string/title_activity_jobs_information"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".Jobs"
@@ -91,7 +92,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
-
             </intent-filter>
         </activity>
         <activity

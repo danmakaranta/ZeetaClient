@@ -282,7 +282,6 @@ public class Fashion_samples extends AppCompatActivity {
                 } else {
                     sendClientRequest(id);
                 }
-
             }
         });
 
