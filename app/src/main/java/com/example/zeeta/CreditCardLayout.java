@@ -33,6 +33,7 @@ public class CreditCardLayout extends AppCompatActivity {
                 .mobileNumberExplanation("This number is required for SMS")
                 .setup(CreditCardLayout.this);
         cardForm.getCvvEditText().setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+
         buyBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

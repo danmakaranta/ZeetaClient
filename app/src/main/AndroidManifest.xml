@@ -23,7 +23,8 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme.NoActionBar">
-        <activity android:name=".RidePage2"></activity>
+        <activity android:name=".AddPaymentCard"></activity>
+        <activity android:name=".RidePage2" />
         <activity
             android:name=".Login"
             android:screenOrientation="portrait" />
@@ -85,6 +86,9 @@
         <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
+        <meta-data
+            android:name="co.paystack.android.PublicKey"
+            android:value="pk_test_0fdb02400af93bc266dff66231a5498a957e6550" />
 
         <activity
             android:name=".MainActivity"

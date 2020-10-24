@@ -115,6 +115,7 @@
     <string name="request">Request</string>
     <string name="fashionitem">fashionItem</string>
     <string name="tailor">Tailor</string>
+    <string name="add_card">ADD CARD</string>
 
 
 </resources>

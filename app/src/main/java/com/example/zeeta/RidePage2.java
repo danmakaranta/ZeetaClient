@@ -48,6 +48,9 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
+
 public class RidePage2 extends FragmentActivity implements OnMapReadyCallback {
 
     private final static int LOCATION_REQUEST_CODE = 23;
@@ -92,29 +95,10 @@ public class RidePage2 extends FragmentActivity implements OnMapReadyCallback {
     private ProgressDialog cancelRideProgressDialog;
     private Location tempLocation;
     private GeoPoint cloudGP;
+    private LatLng previousPosition;
 
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_ride_page2);
-        requestPermision();
-        BitmapDrawable bitmapdraw = (BitmapDrawable) getResources().getDrawable(R.drawable.tdcar);
-        Bitmap b = bitmapdraw.getBitmap();
-        //BitMapMarker = Bitmap.createScaledBitmap(b, 110, 60, false);
-        BitMapMarker = Bitmap.createBitmap(b);
-
-        callDriver = (Button) findViewById(R.id.call_driver2);
-        cancelRideBtn = findViewById(R.id.cancel_ride2);
-        wait_timer = findViewById(R.id.wait_timer2);
-        waitingTxt = findViewById(R.id.waittxt2);
-        wait_timer.setVisibility(View.INVISIBLE);
-        waitingTxt.setVisibility(View.INVISIBLE);
-
-        cancelRideProgressDialog = new ProgressDialog(this);
-        cancelRideProgressDialog.setMessage("Cancelling Ride....");
-
-
+    private static double degreeToRadians(double latLong) {
+        return (Math.PI * latLong / 180.0);
     }
 
     //to get user location
@@ -159,34 +143,64 @@ public class RidePage2 extends FragmentActivity implements OnMapReadyCallback {
         });
     }
 
-    void updateMarker(Location location) {
-        if (AnimationStatus && location != null) {
-            myUpdatedLocation = location;
-        } else {
-            if (location != null) {
-                myLocation = location;
-                myUpdatedLocation = location;
-                LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
-                carMarker = mMap.addMarker(new MarkerOptions().position(latlng).
-                        flat(true).icon(BitmapDescriptorFactory.fromBitmap(BitMapMarker)));
-                carMarker.setTitle("Your Driver");
-                carMarker.showInfoWindow();
+    private static double radiansToDegree(double latLong) {
+        return (latLong * 180.0 / Math.PI);
+    }
 
-                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(
-                        latlng, 17f);
-                mMap.animateCamera(cameraUpdate);
-                AnimationStatus = true;
-            }
-        }
-        if (location != null) {
-            Bearing = location.getBearing();
-            LatLng updatedLatLng = new LatLng(myUpdatedLocation.getLatitude(), myUpdatedLocation.getLongitude());
-            changePositionSmoothly(carMarker, updatedLatLng, Bearing);
+    public static double getBearing(LatLng source, LatLng destination) {
+
+        double lat1 = source.latitude;
+        double lng1 = source.longitude;
+
+        double lat2 = destination.latitude;
+        double lng2 = destination.longitude;
+
+        double fLat = degreeToRadians(lat1);
+        double fLong = degreeToRadians(lng1);
+        double tLat = degreeToRadians(lat2);
+        double tLong = degreeToRadians(lng2);
+
+        double dLon = (tLong - fLong);
+
+        double degree = radiansToDegree(Math.atan2(sin(dLon) * cos(tLat),
+                cos(fLat) * sin(tLat) - sin(fLat) * cos(tLat) * cos(dLon)));
+
+
+        if (degree >= 0) {
+            return degree;
+        } else {
+            return 360 + degree;
         }
     }
 
-    void retrieveDriverLocation() {
-        tempLocation = new Location(LocationManager.GPS_PROVIDER);
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+        getMyLocation();
+        //retrieveDriverLocation();
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_ride_page2);
+        requestPermision();
+        BitmapDrawable bitmapdraw = (BitmapDrawable) getResources().getDrawable(R.drawable.tdcar);
+        Bitmap b = bitmapdraw.getBitmap();
+        //BitMapMarker = Bitmap.createScaledBitmap(b, 110, 60, false);
+        BitMapMarker = Bitmap.createBitmap(b);
+
+        callDriver = (Button) findViewById(R.id.call_driver2);
+        cancelRideBtn = findViewById(R.id.cancel_ride2);
+        wait_timer = findViewById(R.id.wait_timer2);
+        waitingTxt = findViewById(R.id.waittxt2);
+        wait_timer.setVisibility(View.INVISIBLE);
+        waitingTxt.setVisibility(View.INVISIBLE);
+
+        cancelRideProgressDialog = new ProgressDialog(this);
+        cancelRideProgressDialog.setMessage("Cancelling Ride....");
+
         locationRef = FirebaseFirestore.getInstance()
                 .collection("Abuja")
                 .document("xXVO7elEFYdH3wgsBEuMneQTOf83");
@@ -199,21 +213,88 @@ public class RidePage2 extends FragmentActivity implements OnMapReadyCallback {
                     if (cloudGP != null) {
                         double latitude = cloudGP.getLatitude() / 1E6;
                         double longitude = cloudGP.getLongitude() / 1E6;
-                        tempLocation.setLongitude(longitude);
-                        tempLocation.setLatitude(latitude);
-                        updateMarker(tempLocation);
+                        previousPosition = new LatLng(latitude, longitude);
+
                     }
                 }
             }
         });
+
+
     }
 
+    void retrieveDriverLocation() {
 
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
-        getMyLocation();
-        //retrieveDriverLocation();
+        final long start = SystemClock.uptimeMillis();
+        final Interpolator interpolator = new AccelerateDecelerateInterpolator();
+        final float durationInMs = 3000;
+        Handler handler2 = new Handler();
+        handler2.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                long elapsed;
+                float t;
+                float v;
+
+                // Calculate progress using interpolator
+                elapsed = SystemClock.uptimeMillis() - start;
+                t = elapsed / durationInMs;
+                v = interpolator.getInterpolation(t);
+
+                tempLocation = new Location(LocationManager.GPS_PROVIDER);
+                locationRef = FirebaseFirestore.getInstance()
+                        .collection("Abuja")
+                        .document("xXVO7elEFYdH3wgsBEuMneQTOf83");
+                locationRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                        if (task.isSuccessful()) {
+                            DocumentSnapshot doc = task.getResult();
+                            cloudGP = doc.getGeoPoint("geoPoint");
+                            if (cloudGP != null) {
+                                double latitude = cloudGP.getLatitude() / 1E6;
+                                double longitude = cloudGP.getLongitude() / 1E6;
+                                final LatLng newPosition = new LatLng(latitude, longitude);
+
+                                LatLng currentPosition = new LatLng(
+                                        previousPosition.latitude * (1 - t) + newPosition.latitude * t,
+                                        previousPosition.longitude * (1 - t) + newPosition.longitude * t);
+
+                                carMarker = mMap.addMarker(new MarkerOptions().position(currentPosition).
+                                        flat(true).icon(BitmapDescriptorFactory.fromBitmap(BitMapMarker)));
+                                carMarker.setTitle("Your Driver");
+                                carMarker.showInfoWindow();
+
+                                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(
+                                        currentPosition, 17f);
+                                mMap.animateCamera(cameraUpdate);
+
+                                carMarker.setRotation((float) getBearing(previousPosition, newPosition));
+                                carMarker.setPosition(currentPosition);
+
+                                //myLocation.setLatitude(newPosition.latitude);
+                                //myLocation.setLongitude(newPosition.longitude);
+
+                            }
+                        }
+                    }
+                });
+            }
+        }, 3000);
+    }
+
+    private double getBearing2(LatLng source, LatLng destination) {
+        double lat1 = source.latitude;
+        double lat2 = destination.longitude;
+        double lng1 = source.longitude;
+        double lng2 = destination.longitude;
+
+        double dLon = (lng2 - lng1);
+        double x = Math.sin(Math.toRadians(dLon)) * Math.cos(Math.toRadians(lat2));
+        double y = Math.cos(Math.toRadians(lat1)) * Math.sin(Math.toRadians(lat2)) - Math.sin(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * Math.cos(Math.toRadians(dLon));
+        double bearing = Math.toDegrees((Math.atan2(x, y)));
+        System.out.println("BearingAngle : " + bearing);
+        return bearing;
     }
 
     void changePositionSmoothly(final Marker myMarker, final LatLng newLatLng, final Float bearing) {
@@ -260,6 +341,7 @@ public class RidePage2 extends FragmentActivity implements OnMapReadyCallback {
                 myLocation.setLongitude(newLatLng.longitude);
             }
         });
+
     }
 
 

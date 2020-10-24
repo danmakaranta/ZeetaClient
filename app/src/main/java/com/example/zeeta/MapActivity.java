@@ -852,6 +852,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     case R.id.taxiService:
                         if (!taxiSearchInProgress) {
                             nemaProgressDialog.show();
+                            taxiSearchInProgress = true;
                             getTaxi();
                         } else {
                             Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
@@ -861,6 +862,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     case R.id.tricycleService:
                         if (!tricycleSearchInProgress) {
                             nemaProgressDialog.show();
+                            tricycleSearchInProgress = true;
                             getTricycle();
                         } else {
                             Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
@@ -870,6 +872,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     case R.id.fashion_designer:
                         if (!fashionDesignerSearchInProgress) {
                             nemaProgressDialog.show();
+                            fashionDesignerSearchInProgress = true;
                             getfashionDesigners();
                         } else {
                             Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
@@ -879,6 +882,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                     case R.id.mechanicService:
                         if (!mechanicSearchInProgress) {
                             nemaProgressDialog.show();
+                            mechanicSearchInProgress = true;
                             getMechanic();
                         } else {
                             Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
@@ -886,8 +890,9 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         navigationView.setVisibility(View.GONE);
                         return true;
                     case R.id.bikeDeliveryService:
-                        if (!mechanicSearchInProgress) {
+                        if (!bikeDeliverySearchInProgress) {
                             nemaProgressDialog.show();
+                            bikeDeliverySearchInProgress = true;
                             getDeliveryBikes();
                         } else {
                             Toast.makeText(MapActivity.this, "Your search is already in progress", Toast.LENGTH_SHORT).show();
@@ -901,7 +906,7 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
                         startActivity(homeIntent);
                         return true;
                     case R.id.hairService:
-                        Intent ridePageAnim = new Intent(MapActivity.this, RidePage2.class);
+                        Intent ridePageAnim = new Intent(MapActivity.this, AddPaymentCard.class);
                         startActivity(ridePageAnim);
                         return true;
 
@@ -914,8 +919,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     private void getfashionDesigners() {
-
-        fashionDesignerSearchInProgress = true;
 
         DatabaseReference refFashionDesigner = null;
         refFashionDesigner = FirebaseDatabase.getInstance().getReference(locality).child("Fashion Designer");
@@ -1110,8 +1113,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
 
     private void getTricycle() {
-
-        tricycleSearchInProgress = true;
 
         DatabaseReference refTricycle = null;
         refTricycle = FirebaseDatabase.getInstance().getReference(locality).child("Tricycle");
@@ -1524,7 +1525,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
 
     private void getTaxi() {
 
-
         DatabaseReference refTaxi = null;
         refTaxi = FirebaseDatabase.getInstance().getReference(locality).child("Taxi");
         GeoFire geoFireTaxi = null;
@@ -1653,7 +1653,6 @@ public class MapActivity extends FragmentActivity implements LoaderManager.Loade
     }
 
     private void getMechanic() {
-        mechanicSearchInProgress = true;
 
         DatabaseReference refMechanic = null;
         refMechanic = FirebaseDatabase.getInstance().getReference(locality).child("Mechanic");
